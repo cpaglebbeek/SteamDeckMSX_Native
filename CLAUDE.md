@@ -8,7 +8,7 @@ Native, offline MSX-emulator voor Steam Deck. Fork van openMSX + eigen UI-laag.
 
 ## Codenaam-thema
 
-MSX-game-helden. v0.0.1 = **Bubble Bobble**. Vrije pool: Nemesis, Aleste, Penguin Adventure, Castlevania, Salamander, Parodius, Snatcher, YS, Xanadu, Treasure of Usas, King's Valley, Twinbee, Gradius, Goonies, Magical Tree, Pippols, Yie Ar Kung-Fu, Hyper Olympic, Antarctic Adventure.
+MSX-game-helden. v0.0.1 = **Bubble Bobble**. **Vrije pool + rotatie-regels:** zie `Meta_SteamDeckMSX/CLAUDE.md` § Codenaam-thema (single source of truth).
 
 ## Feature & Bugfix Protocol (Color-Coded)
 
