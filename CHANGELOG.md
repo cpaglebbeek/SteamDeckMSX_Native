@@ -1,5 +1,47 @@
 # CHANGELOG — SteamDeckMSX_Native
 
+## v0.0.3-Castlevania (2026-05-31) — Eerste runnable code (Qt6/QML)
+
+### Toegevoegd — code
+- `CMakeLists.txt` top-level — C++23, find_package Qt6, sub-dirs, opt-in tests
+- `src/CMakeLists.txt` — qt_add_executable + qt_add_qml_module met SteamDeckMSX URI
+- `src/main.cc` — QGuiApplication + QQmlApplicationEngine, load `SteamDeckMSX/Main`
+- `src/MsxCore.{h,cc}` — QObject + QML_ELEMENT, QProcess-stub voor `openmsx -version`
+  probe (subprocess-pattern PoC per P-SDM-01 + ARCHITECTURE.md beslissing #2)
+- `src/CartridgeModel.{h,cc}` — QAbstractListModel met 8 dummy MSX-titels
+  (Metal Gear, Bubble Bobble, Knightmare, Vampire Killer, Nemesis, Aleste,
+  Penguin Adventure, Snatcher)
+- `src/qml/Tokens.qml` (Singleton) — DESIGN_TOKENS.md waarden ge-encodeerd:
+  MSX-CRT-revival palette, Noto-typografie, 4pt-grid, motion, geometry
+- `src/qml/Main.qml` — root ApplicationWindow 1280×800, header met openMSX-status,
+  CartridgeBrowser, SettingsRow stub, Esc/B = quit
+- `src/qml/CartridgeBrowser.qml` — ListView met focus-navigatie, A/Enter = activate
+- `src/qml/CartridgeCard.qml` — machine-pictogram + titel + publisher + year,
+  focus-ring per Tokens.borderStrong (4px MSX-groen)
+- `src/qml/SettingsRow.qml` — label + value placeholder voor BIOS-pad-toekomst
+- `tests/CMakeLists.txt` + `tests/test_placeholder.cc` — opt-in via
+  `-DSTEAMDECKMSX_BUILD_TESTS=ON`, alleen Qt6::Core smoke
+
+### Toegevoegd — build/deploy
+- `deploy/sync-to-deck.sh` — rsync vanaf Mac/laptop naar Deck Desktop Mode
+- `deploy/flatpak-build-on-deck.sh` — flatpak-builder runner (op Deck, NIET op Mac)
+- `nl.icthorse.SteamDeckMSX.yaml` — echte build-commands voor beide modules
+  (openmsx homemade Make + steamdeckmsx-ui CMake)
+
+### Smoke-test (Mac)
+- `brew install qt` gestart in background voor `cmake --preset native-debug`
+- Build-resultaat zie sessie-MD `prompts/2026-05-31_v0.0.3_first_code.md`
+
+### Stap 21 (eerste Flatpak-build op Deck) — overgeslagen deze sessie
+Op verzoek gebruiker. Eerste echte Flatpak-build = v0.0.4-fase.
+
+### Niet inbegrepen v0.0.3 (gepland v0.0.4)
+- ROM-loading (echte cartridge-load flow)
+- openMSX subprocess-IPC voor save-state/run (alleen `-version` probe nu)
+- Steam Input preset
+- C-BIOS-machines daadwerkelijk laden in UI
+- Echte iconen (D-pad SVG) — placeholders nu
+
 ## v0.0.2-Nemesis (2026-05-31) — Architectuur-beslissingen + openMSX submodule
 
 ### Toegevoegd

@@ -1,15 +1,14 @@
-# Flatpak manifest stub — SteamDeckMSX_Native
+# Flatpak manifest — SteamDeckMSX_Native v0.0.3-Castlevania
 #
-# Status: v0.0.2-Nemesis stub. Niet runnable.
-# - openMSX submodule (RELEASE_21_0) wordt door build-system samengevoegd; manifest
-#   wijst nog niet naar onze UI-laag (komt v0.0.3+).
-# - Real flatpak-builder run pas v0.0.3 zodra CMakeLists.txt staat.
+# Status: build-commands aanwezig. End-to-end nog niet getest op Steam Deck
+# (Christian heeft stap 21 v0.0.3 'skip nu' gekozen — eerste echte run komt v0.0.4).
 #
-# Documentatie van de keuzes hier:
-# - runtime org.freedesktop.Platform 23.08 (Qt6 + SDL2 inbegrepen)
-# - permissions: minimum — geen netwerk (variant 1 is offline), gamepad via portal,
-#   home read-only behalve eigen ~/.var/app/...
-# - finish-args volgen P-SDM-06 (Steam Input passthrough — geen raw /dev/input)
+# Beslissingen vastgelegd v0.0.2-Nemesis (ARCHITECTURE.md):
+# - runtime org.freedesktop.Platform 23.08
+# - UI-toolkit Qt6, koppeling subprocess+control-channel
+# - permissies: GEEN --share=network (variant 1 = offline)
+#               GEEN --filesystem=home (BIOS/ROMs via Flatpak portal)
+# - Steam Input passthrough via --device=input (P-SDM-06)
 
 app-id: nl.icthorse.SteamDeckMSX
 runtime: org.freedesktop.Platform
@@ -20,34 +19,30 @@ sdk-extensions:
 command: steamdeckmsx
 
 finish-args:
-  # GUI access (Wayland preferred, X11 fallback voor Deck Desktop Mode)
   - --socket=wayland
   - --socket=fallback-x11
   - --share=ipc
-  # Audio
   - --socket=pulseaudio
-  # Gamepad — via Flatpak input-portal (Steam Input compat)
   - --device=input
-  # GPU acceleration (Mesa RADV — Steam Deck APU)
   - --device=dri
-  # Home: alleen eigen app-data, geen breed home-access
   - --persist=.var/app/nl.icthorse.SteamDeckMSX
-  # Bewust GEEN: --share=network (variant 1 = offline-only)
-  # Bewust GEEN: --filesystem=home (BIOS/ROMs via Flatpak portal-pickup)
 
 modules:
-  # openMSX core — gepinned op RELEASE_21_0 via submodule
+  # openMSX core — gepinned op tag RELEASE_21_0 (commit cb61db762)
+  # Build van openMSX zelf via z'n homemade Make. Geen ./configure stap nodig.
   - name: openmsx
     buildsystem: simple
     build-commands:
-      # PLACEHOLDER v0.0.3: ./configure + make + install
-      # Voor nu: niet bouwen — manifest valideert structuur, niet runtime.
-      - echo "openmsx module stub — v0.0.3 build-commands"
+      - make -j${FLATPAK_BUILDER_N_JOBS:-4} OPENMSX_TARGET_OS=linux
+      - install -Dm755 derived/*-linux-opt/bin/openmsx ${FLATPAK_DEST}/bin/openmsx
+      # C-BIOS bundeling — open source MSX BIOS replacement (P-SDM-05)
+      - install -Dm644 -t ${FLATPAK_DEST}/share/openmsx/machines derived/*-linux-opt/bindist/share/machines/*.xml
+      - cp -r share/skins ${FLATPAK_DEST}/share/openmsx/skins
     sources:
       - type: dir
         path: externals/openmsx
 
-  # SteamDeckMSX_Native UI-laag (Qt6) — placeholder v0.0.3
+  # SteamDeckMSX_Native — Qt6 UI-laag
   - name: steamdeckmsx-ui
     buildsystem: cmake-ninja
     config-opts:
@@ -55,10 +50,14 @@ modules:
       - -DSTEAMDECKMSX_TARGET=steamdeck
       - -DSTEAMDECKMSX_UI_TOOLKIT=qt6
       - -DSTEAMDECKMSX_OPENMSX_LINK=subprocess
+      - -DSTEAMDECKMSX_VERSION_CODENAME=Castlevania
     sources:
       - type: dir
         path: .
         skip:
-          - externals/openmsx  # apart module hierboven
+          - externals/openmsx       # apart module hierboven
           - build
+          - build-flatpak
+          - .flatpak-builder
           - .git
+          - releases

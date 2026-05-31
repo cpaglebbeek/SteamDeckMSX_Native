@@ -58,39 +58,62 @@ Persistent storage:
 | Flatpak-runtime | `org.freedesktop.Platform//23.08` |
 | Manifest | `nl.icthorse.SteamDeckMSX.yaml` (v0.1.0) |
 
-## Directory-layout
+## Directory-layout (actueel v0.0.3-Castlevania)
 
 ```
 SteamDeckMSX_Native/
 ├─ README.md
-├─ LICENSE                   ← AGPL-3.0
+├─ LICENSE                          ← AGPL-3.0
 ├─ CLAUDE.md
-├─ VERSION                   ← 0.0.1-BubbleBobble
-├─ ARCHITECTURE.md           ← dit bestand
+├─ VERSION                          ← 0.0.3-Castlevania
+├─ ARCHITECTURE.md                  ← dit bestand
 ├─ BUGLIST.md
 ├─ CHANGELOG.md
+├─ DESIGN_TOKENS.md                 ← v0.0.2+ (MSX-CRT-revival)
+├─ CMakeLists.txt                   ← v0.0.3+ — top-level, C++23, Qt6
+├─ CMakePresets.json                ← v0.0.2+ — 3 presets
+├─ nl.icthorse.SteamDeckMSX.yaml    ← v0.0.3+ — Flatpak manifest met build-commands
 ├─ .gitignore
-├─ CMakeLists.txt            ← v0.0.2+
-├─ CMakePresets.json         ← v0.0.2+
-├─ nl.icthorse.SteamDeckMSX.yaml  ← Flatpak manifest, v0.1.0+
+├─ .gitmodules                      ← v0.0.2+
 │
-├─ src/                      ← v0.0.2+
-│   ├─ ui/
-│   ├─ bridge/               ← openMSX <-> UI bridge
-│   └─ steam_input/
+├─ src/                             ← v0.0.3+
+│   ├─ CMakeLists.txt               ← qt_add_executable + qt_add_qml_module
+│   ├─ main.cc                      ← QGuiApplication + load Main.qml
+│   ├─ MsxCore.{h,cc}               ← QObject + QML_ELEMENT, QProcess-stub (subprocess PoC)
+│   ├─ CartridgeModel.{h,cc}        ← QAbstractListModel, 8 dummy MSX-titels
+│   └─ qml/
+│       ├─ Tokens.qml               ← singleton, DESIGN_TOKENS waarden
+│       ├─ Main.qml                 ← root window 1280×800
+│       ├─ CartridgeBrowser.qml     ← ListView focus-nav
+│       ├─ CartridgeCard.qml        ← per-titel kaart
+│       └─ SettingsRow.qml          ← label/value placeholder
 │
-├─ externals/                ← v0.0.2+
-│   └─ openmsx/              ← git submodule, fork
+├─ tests/                           ← v0.0.3+ (opt-in: -DSTEAMDECKMSX_BUILD_TESTS=ON)
+│   ├─ CMakeLists.txt
+│   └─ test_placeholder.cc
 │
-├─ docs/
-│   └─ screens/              ← variant-specifieke wireframes
+├─ deploy/                          ← v0.0.3+
+│   ├─ sync-to-deck.sh              ← rsync Mac → Deck Desktop Mode
+│   └─ flatpak-build-on-deck.sh     ← flatpak-builder op Deck (niet op Mac)
 │
-├─ patches/                  ← lokale openMSX patches (zie P-SDM-01)
+├─ externals/                       ← v0.0.2+
+│   └─ openmsx/                     ← git submodule cpaglebbeek/openMSX-steamdeckmsx
+│                                     gepinned RELEASE_21_0 (cb61db762)
 │
-├─ prompts/                  ← sessie-MD's
+├─ patches/                         ← (gepland: lokale openMSX patches, P-SDM-01)
 │
-└─ releases/                 ← Flatpak artefacten (untracked >100MB)
+├─ prompts/                         ← sessie-MD's
+│
+└─ releases/                        ← Flatpak artefacten (untracked >100MB)
 ```
+
+## QML module-systeem
+
+URI: `SteamDeckMSX` 1.0 — geregistreerd via `qt_add_qml_module`. Bevat:
+- 5 QML files (`Tokens` als singleton, `Main`/`CartridgeBrowser`/`CartridgeCard`/`SettingsRow`)
+- 2 C++ types: `MsxCore`, `CartridgeModel` (via `QML_ELEMENT` macro)
+
+`Tokens.qml` is singleton + bron-van-waarheid voor alle styling-waarden — verwijst naar `DESIGN_TOKENS.md` (manuele sync; wijziging in MD vereist update in Tokens.qml). Drift = **Geel bug**.
 
 ## Externe afhankelijkheden
 
