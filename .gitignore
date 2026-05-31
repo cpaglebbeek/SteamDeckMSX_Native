@@ -1,0 +1,27 @@
+.DS_Store
+*.swp
+*.bak
+.idea/
+.vscode/
+
+# Build
+build/
+build-*/
+build-flatpak/
+.flatpak-builder/
+
+# openMSX submodule build artifacts
+externals/openmsx/derived/
+externals/openmsx/build/
+
+# Release artifacts groter dan ~100MB worden niet in git getrackt
+# (handmatig in GitHub Release uploaden)
+releases/*.flatpak
+!releases/.gitkeep
+
+# User BIOS / ROMs — NOOIT committen
+*.rom
+*.dsk
+*.cas
+bios/
+roms/
