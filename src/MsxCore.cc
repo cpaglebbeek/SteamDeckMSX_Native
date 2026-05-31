@@ -16,7 +16,9 @@ MsxCore::MsxCore(QObject *parent)
     connect(&m_process, &QProcess::readyReadStandardError, this, [this]() {
         const QByteArray e = m_process.readAllStandardError();
         if (!e.isEmpty()) {
-            qWarning() << "openmsx stderr:" << QString::fromUtf8(e).trimmed();
+            const QString line = QString::fromUtf8(e).trimmed();
+            qWarning() << "openmsx stderr:" << line;
+            emit logMessage(QStringLiteral("stderr"), line);
         }
     });
     connect(&m_process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
@@ -45,6 +47,23 @@ void MsxCore::setOpenmsxPath(const QString &p)
     emit openmsxPathChanged();
 }
 
+void MsxCore::setDataPath(const QString &p)
+{
+    if (p == m_dataPath) return;
+    m_dataPath = p;
+    emit dataPathChanged();
+}
+
+void MsxCore::setCurrentMachine(const QString &m)
+{
+    if (m == m_currentMachine) return;
+    m_currentMachine = m;
+    emit currentMachineChanged();
+    if (m_state == Running && !m.isEmpty()) {
+        sendCommand(QStringLiteral("set machine %1").arg(m));
+    }
+}
+
 void MsxCore::setState(State s)
 {
     if (s == m_state) return;
@@ -70,7 +89,8 @@ void MsxCore::probeVersion()
     }
     m_probeMode = true;
     setState(Probing);
-    m_readBuffer.clear();
+    m_xmlBuffer.clear();
+    m_xmlRootOpen = false;
     m_process.start(m_openmsxPath, {QStringLiteral("--version")});
 }
 
@@ -81,7 +101,6 @@ void MsxCore::start(const QString &romPath)
         return;
     }
     if (m_state == Booting || m_state == Running) {
-        // already running — load ROM via command instead
         if (!romPath.isEmpty()) {
             loadRom(romPath);
         }
@@ -92,11 +111,25 @@ void MsxCore::start(const QString &romPath)
     emit currentRomChanged();
 
     QStringList args = {QStringLiteral("-control"), QStringLiteral("stdio")};
+    if (!m_currentMachine.isEmpty()) {
+        args << QStringLiteral("-machine") << m_currentMachine;
+    }
     if (!romPath.isEmpty()) {
         args << QStringLiteral("-carta") << romPath;
     }
+
+    // BUG-004 fix: set OPENMSX_SYSTEM_DATA env so the bin finds machines/skins.
+    if (!m_dataPath.isEmpty()) {
+        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+        env.insert(QStringLiteral("OPENMSX_SYSTEM_DATA"), m_dataPath);
+        m_process.setProcessEnvironment(env);
+    }
+
     setState(Booting);
-    m_readBuffer.clear();
+    m_xmlBuffer.clear();
+    m_xmlRootOpen = false;
+    m_nextCommandId = 1;
+    m_xml.clear();
     m_process.start(m_openmsxPath, args);
 }
 
@@ -127,69 +160,137 @@ void MsxCore::loadRom(const QString &path)
     }
 }
 
-void MsxCore::sendCommand(const QString &cmd)
+int MsxCore::sendCommand(const QString &cmd)
 {
     if (m_process.state() != QProcess::Running) {
         qWarning() << "sendCommand: process not running, dropped:" << cmd;
-        return;
+        return -1;
     }
-    const QString wrapped = QStringLiteral("<command>%1</command>\n").arg(cmd);
+    const int id = m_nextCommandId++;
+    const QString wrapped =
+        QStringLiteral("<command id=\"%1\">%2</command>\n").arg(id).arg(cmd);
     m_process.write(wrapped.toUtf8());
+    return id;
+}
+
+void MsxCore::requestMachineList()
+{
+    sendCommand(QStringLiteral("machine_info machines"));
 }
 
 void MsxCore::onReadyRead()
 {
-    m_readBuffer.append(m_process.readAllStandardOutput());
+    const QByteArray chunk = m_process.readAllStandardOutput();
+    if (chunk.isEmpty()) return;
 
-    int pos = 0;
-    while ((pos = m_readBuffer.indexOf('\n')) != -1) {
-        const QString line = QString::fromUtf8(m_readBuffer.left(pos)).trimmed();
-        m_readBuffer.remove(0, pos + 1);
-        if (!line.isEmpty()) {
-            parseLine(line);
+    if (m_probeMode) {
+        // --version output is plain text, not XML
+        const QString line = QString::fromUtf8(chunk).trimmed();
+        if (!line.isEmpty() && m_version.isEmpty()) {
+            // First line is "openMSX 21.0", second line is "flavour: opt"
+            const auto parts = line.split('\n', Qt::SkipEmptyParts);
+            if (!parts.isEmpty()) {
+                m_version = parts.first().trimmed();
+                emit versionChanged();
+            }
+        }
+        return;
+    }
+
+    parseChunk(chunk);
+}
+
+void MsxCore::parseChunk(const QByteArray &chunk)
+{
+    // QXmlStreamReader works incremental via addData(). When NotWellFormed
+    // due to premature end of buffer, we ignore — next chunk continues.
+    m_xml.addData(chunk);
+
+    while (!m_xml.atEnd()) {
+        QXmlStreamReader::TokenType t = m_xml.readNext();
+        if (m_xml.hasError()) {
+            // PrematureEndOfDocumentError = need more data; bail and resume next chunk.
+            if (m_xml.error() == QXmlStreamReader::PrematureEndOfDocumentError) {
+                return;
+            }
+            // Anders: skip de huidige error en reset; logging-only
+            qWarning() << "xml parse error:" << m_xml.errorString();
+            break;
+        }
+        switch (t) {
+            case QXmlStreamReader::StartElement: handleStartElement(); break;
+            case QXmlStreamReader::EndElement:   handleEndElement(); break;
+            case QXmlStreamReader::Characters:   handleCharacters(); break;
+            default: break;
         }
     }
 }
 
-void MsxCore::parseLine(const QString &line)
+void MsxCore::handleStartElement()
 {
-    if (m_probeMode) {
-        if (m_version.isEmpty()) {
-            m_version = line;
-            emit versionChanged();
-        }
-        return;
-    }
+    const QString name = m_xml.name().toString();
+    m_curElement = name;
+    m_curText.clear();
 
-    // v0.0.4 minimaal: line-based scan; XML-aware parser komt v0.0.5
-    // openMSX -control stdio output is XML-wrapped:
-    //   <openmsx-output>
-    //   <reply result="ok" command-id="N">...</reply>
-    //   <update type="..." name="...">...</update>
-    if (line.contains(QStringLiteral("<openmsx-output>"))) {
-        // start of stream
+    if (name == QStringLiteral("openmsx-output")) {
+        m_xmlRootOpen = true;
         if (m_state == Booting) {
             setState(Running);
         }
-        emit eventReceived(line);
         return;
     }
-    if (line.contains(QStringLiteral("</openmsx-output>"))) {
-        // end of stream — openMSX exiting
+    if (name == QStringLiteral("reply")) {
+        const auto attrs = m_xml.attributes();
+        m_curReplyResult = attrs.value(QStringLiteral("result")).toString();
+        m_curReplyId     = attrs.value(QStringLiteral("command-id")).toInt();
+        return;
+    }
+    if (name == QStringLiteral("update")) {
+        const auto attrs = m_xml.attributes();
+        m_curUpdateType = attrs.value(QStringLiteral("type")).toString();
+        m_curUpdateName = attrs.value(QStringLiteral("name")).toString();
+        return;
+    }
+    if (name == QStringLiteral("log")) {
+        const auto attrs = m_xml.attributes();
+        m_curLogLevel = attrs.value(QStringLiteral("level")).toString();
+        return;
+    }
+}
+
+void MsxCore::handleEndElement()
+{
+    const QString name = m_xml.name().toString();
+
+    if (name == QStringLiteral("openmsx-output")) {
+        m_xmlRootOpen = false;
         setState(Quitting);
-        emit eventReceived(line);
         return;
     }
-    if (line.contains(QStringLiteral("<reply"))) {
-        emit eventReceived(line);
+    if (name == QStringLiteral("reply")) {
+        emit replyReceived(m_curReplyId,
+                           m_curReplyResult == QStringLiteral("ok"),
+                           m_curText.trimmed());
+        m_curReplyResult.clear();
+        m_curReplyId = 0;
         return;
     }
-    if (line.contains(QStringLiteral("<update"))) {
-        emit eventReceived(line);
+    if (name == QStringLiteral("update")) {
+        emit stateUpdate(m_curUpdateType, m_curUpdateName, m_curText.trimmed());
+        m_curUpdateType.clear();
+        m_curUpdateName.clear();
         return;
     }
-    // Onbekende output — door-emit voor debugging
-    emit eventReceived(line);
+    if (name == QStringLiteral("log")) {
+        emit logMessage(m_curLogLevel, m_curText.trimmed());
+        m_curLogLevel.clear();
+        return;
+    }
+}
+
+void MsxCore::handleCharacters()
+{
+    m_curText.append(m_xml.text().toString());
 }
 
 void MsxCore::onProcessFinished(int code, QProcess::ExitStatus status)

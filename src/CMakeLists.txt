@@ -6,6 +6,8 @@ qt_add_executable(steamdeckmsx_app
     CartridgeModel.cc
     OpenmsxLocator.h
     OpenmsxLocator.cc
+    MachineModel.h
+    MachineModel.cc
 )
 
 set_source_files_properties(qml/Tokens.qml PROPERTIES
@@ -26,6 +28,7 @@ qt_add_qml_module(steamdeckmsx_app
         qml/AddRomCard.qml
         qml/SettingsRow.qml
         qml/Toast.qml
+        qml/MachineSelector.qml
 )
 
 target_link_libraries(steamdeckmsx_app PRIVATE

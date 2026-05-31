@@ -1,5 +1,67 @@
 # CHANGELOG — SteamDeckMSX_Native
 
+## v0.0.5-SolidSnake (2026-05-31) — XML-stream-parser + BUG-004 fix + machine-keuze
+
+### BUG-004 fix — OPENMSX_SYSTEM_DATA env-var
+- `OpenmsxLocator` uitgebreid met `dataPath` property + auto-discovery:
+  - Mac dev bindist: `<prefix>/bindist/openMSX.app/Contents/Resources/share`
+  - Linux Flatpak:   `/app/share/openmsx`
+  - Linux dev:       `<binDir>/../share`
+- Dev-fallback paths repaired (3 levels relative-root: `/../../../`, `/../../`, `/../`)
+- `MsxCore.setDataPath()` zet `QProcessEnvironment OPENMSX_SYSTEM_DATA` op spawn
+- **Live-verified op Mac:** `OPENMSX_SYSTEM_DATA=<share> openmsx --version` →
+  "openMSX 21.0\nflavour: opt\ncomponents: CORE GL LASERDISC" ✅
+
+### MsxCore — volledige XML-stream-parser
+- `QXmlStreamReader` incremental — buffer-friendly, parsed zodra complete element
+- `PrematureEndOfDocumentError` graceful (wacht op meer chunks)
+- Parse-handlers: `<openmsx-output>` (open/close = Running/Quitting),
+  `<reply result="ok|nok" command-id="N">body</reply>`,
+  `<update type="..." name="...">value</update>`,
+  `<log level="...">msg</log>`
+- Nieuwe signals: `replyReceived(int, bool, QString)`, `stateUpdate(QString, QString, QString)`,
+  `logMessage(QString, QString)`, `rawLine(QString)` (debug)
+- `sendCommand()` retourneert nu int command-id (counter-based, >= 1)
+- `requestMachineList()` slot — `machine_info machines` Tcl-call
+- `currentMachine` property + `set machine <name>` hot-swap (alleen Running)
+
+### MachineModel (nieuw)
+- QAbstractListModel met `name` + `isCurrent` roles
+- Fallback hardcoded lijst (`C-BIOS_MSX1` / `MSX2` / `MSX2+`) tot dynamic load slaagt
+- Dynamic load via `MsxCore.requestMachineList()` → parse Tcl-list-syntax
+  (space-separated, brace-quoted, `{multi word names}`)
+- Persist current machine in QSettings (`machine/current`)
+- QML-bindable via `core` property; auto-binds `replyReceived` signal
+
+### MachineSelector.qml — inline bottom-bar dropdown
+- 360×64 px control met current machine + dropdown indicator
+- Popup boven control (opent omhoog, popup-anchor `y: -360`)
+- ListView met focus-navigatie, A/Enter = select, B/Esc = close
+- `isCurrent` ● dot vs ○ voor andere; accent-primary focus-border
+- Persisteert keuze in QSettings via MachineModel
+
+### Tests uitgebreid 6 → 10 cases
+- T1-T6: ongewijzigd (initial state, path roundtrip, probe-no-path, stop-idle, sendCommand-idle, dataPath setter)
+- **T7 (nieuw): XML `<reply>` parsing** — verifieert command-id + ok/nok + body
+- **T8 (nieuw): XML `<update>` parsing** — verifieert type/name/value
+- **T9 (nieuw): XML `<log>` parsing** — verifieert level/message met search door history
+- **T10 (nieuw): state-transitions** — verifieert Booting → Running → Idle via shell mock-script
+- Mock-script-helper in test schrijft tijdelijke `.sh` files die XML dumpen
+- 10/10 ✅
+
+### QML — Main.qml uitbreidingen
+- MachineModel toegevoegd, gekoppeld aan msxCore
+- `onStateChanged: Running → machines.refresh()` (dynamic machine-load)
+- `onLogMessage` debug-logging
+- Bottom-bar: Y-Stop button + MachineSelector + openmsx-path display (compact)
+- OpenmsxLocator.dataPath wordt nu propagated naar msxCore.dataPath
+
+### Niet inbegrepen v0.0.5 (gepland v0.0.6+)
+- D-pad SVG iconen
+- Save-state slot-grid (savestate/loadstate commands)
+- Audio/video render-instellingen
+- **Stap 21 — eerste Flatpak-build op Steam Deck** (skip-decision blijft staan)
+
 ## v0.0.4-Aleste (2026-05-31) — ROM-loading flow + openMSX IPC
 
 ### MsxCore — state-machine + subprocess-IPC

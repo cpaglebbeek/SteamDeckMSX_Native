@@ -17,12 +17,34 @@ ApplicationWindow {
         Component.onCompleted: {
             if (OpenmsxLocator.found.length > 0) {
                 openmsxPath = OpenmsxLocator.found
+                dataPath = OpenmsxLocator.dataPath
                 probeVersion()
             }
         }
         onErrorMessageChanged: {
             if (errorMessage.length > 0) {
                 toast.show(qsTr("openMSX: ") + errorMessage, "error")
+            }
+        }
+        onStateChanged: {
+            // Bij eerste Running-state: laad machine-lijst dynamisch
+            if (state === MsxCore.Running && !machines.loaded) {
+                machines.refresh()
+            }
+        }
+        onLogMessage: function(level, message) {
+            if (level === "warning" || level === "stderr") {
+                console.log("[openmsx " + level + "]", message)
+            }
+        }
+    }
+
+    MachineModel {
+        id: machines
+        core: msxCore
+        Component.onCompleted: {
+            if (currentMachine.length > 0) {
+                msxCore.currentMachine = currentMachine
             }
         }
     }
@@ -150,13 +172,22 @@ ApplicationWindow {
                     }
                 }
 
+                MachineSelector {
+                    width: 360
+                    model: machines
+                    currentMachine: machines.currentMachine
+                    onMachineChosen: function(name) {
+                        machines.currentMachine = name
+                        toast.show(qsTr("Machine: ") + name, "info")
+                    }
+                }
+
                 SettingsRow {
-                    width: parent.width - 200 - Tokens.space4
-                    label: qsTr("openmsx-binary")
+                    width: parent.width - 200 - 360 - 2 * Tokens.space4
+                    label: qsTr("openmsx")
                     value: OpenmsxLocator.found.length > 0
-                        ? OpenmsxLocator.found
-                        : qsTr("(niet gevonden — searched: ") +
-                              OpenmsxLocator.searched.join(", ") + ")"
+                        ? OpenmsxLocator.found.split("/").pop()
+                        : qsTr("(niet gevonden)")
                 }
             }
         }
