@@ -1,0 +1,58 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 28, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "_base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "STEAMDECKMSX_OPENMSX_DIR": "${sourceDir}/externals/openmsx"
+      }
+    },
+    {
+      "name": "steamdeck-release",
+      "displayName": "Steam Deck — release Flatpak",
+      "inherits": "_base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CXX_FLAGS": "-O3 -fno-omit-frame-pointer -DNDEBUG",
+        "STEAMDECKMSX_TARGET": "steamdeck",
+        "STEAMDECKMSX_UI_TOOLKIT": "qt6",
+        "STEAMDECKMSX_OPENMSX_LINK": "subprocess"
+      }
+    },
+    {
+      "name": "steamdeck-debug",
+      "displayName": "Steam Deck — debug",
+      "inherits": "_base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_FLAGS": "-O0 -g3 -fno-omit-frame-pointer",
+        "STEAMDECKMSX_TARGET": "steamdeck",
+        "STEAMDECKMSX_UI_TOOLKIT": "qt6",
+        "STEAMDECKMSX_OPENMSX_LINK": "subprocess"
+      }
+    },
+    {
+      "name": "native-debug",
+      "displayName": "Mac smoke-test (NIET ondersteund — P-SDM-08)",
+      "description": "Voor lokale ontwikkeling op Mac: bevestigt dat de UI-laag compileert. NIET als support-target.",
+      "inherits": "_base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "STEAMDECKMSX_TARGET": "native",
+        "STEAMDECKMSX_UI_TOOLKIT": "qt6",
+        "STEAMDECKMSX_OPENMSX_LINK": "subprocess",
+        "STEAMDECKMSX_SKIP_FLATPAK": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "steamdeck-release", "configurePreset": "steamdeck-release" },
+    { "name": "steamdeck-debug", "configurePreset": "steamdeck-debug" },
+    { "name": "native-debug", "configurePreset": "native-debug" }
+  ]
+}

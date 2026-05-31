@@ -109,9 +109,53 @@ Eigen extra's (alleen native variant):
 | SteamDeckMSX_Stream_Server | Save-state-formaat compat (P-SDM-04) — bestand-pad-conventie |
 | SteamDeckMSX_Stream_Client | Geen directe link; zelfde gebruiker kan beide installeren |
 
-## Open architectuurvragen (v0.0.2-onderwerpen)
+## Architectuurvragen — BESLOTEN v0.0.2-Nemesis (2026-05-31)
 
-1. **Qt6 vs GTK4** — Qt6 = beter cross-platform + QML voor TV-stijl UI. GTK4 = GNOME-native, lichter. Steam Deck KDE-desktop = pro-Qt. **Voorlopig: Qt6.**
-2. **openMSX-API-koppeling** — embedded library vs subprocess + IPC? openMSX heeft geen stabiele C-API → subprocess + commando-channel waarschijnlijk veiliger (matcht openMSX's eigen "control" interface).
-3. **Flatpak permissies** — minimum: read-only home, write `~/.var/app/...`, network=NEE (offline), gamepad device access via portal.
-4. **Multitouch/touchscreen** — Steam Deck heeft touchscreen; UI moet ook tikbaar zijn? **Voorlopig: nee, alleen gamepad.**
+| # | Vraag | Beslissing | Rationale |
+|---|---|---|---|
+| 1 | UI-toolkit | **Qt6** (KDE-native + QML voor TV-stijl) | Steam Deck Desktop = KDE; QML maakt focus-navigatie + gamepad-bindings expliciet; openMSX zelf gebruikt geen Qt → geen conflict |
+| 2 | openMSX-koppeling | **Subprocess + control-channel** | openMSX heeft een ontworpen control-interface (TCP/stdin) voor externe UIs (matcht onze use-case 1-op-1). Voordelen: AGPL-isolatie schoon, geen ABI-instabiliteit, core-crash neemt UI niet mee, upstream-changes minder breaking |
+| 3 | Flatpak permissies | `--socket=wayland`, `--socket=fallback-x11`, `--socket=pulseaudio`, `--device=input`, `--device=dri`, `--persist=.var/app/...` + **GEEN `--share=network`** + **GEEN `--filesystem=home`** | Variant 1 = offline-first; BIOS/ROMs via Flatpak portal-file-picker (P-SDM-05 + P-SDM-06) |
+| 4 | Touchscreen | **Nee — alleen gamepad** | P-SDM-02 gamepad-first; touchscreen werkt automatisch in Desktop Mode maar geen design-target |
+
+Zie `CMakePresets.json` (toolkit + link-mode als CMake-cache-variabelen) en `nl.icthorse.SteamDeckMSX.yaml` (Flatpak permissies).
+
+## openMSX-koppeling — detail
+
+```
+┌──────────────────────────┐         ┌──────────────────────────┐
+│  SteamDeckMSX-UI (Qt6)   │         │  openmsx-core (process)  │
+│                          │         │  RELEASE_21_0 commit     │
+│   QtNetwork QTcpSocket   │ ───────►│  cb61db762               │
+│        ▲                 │  TCP    │                          │
+│        │ control-cmds    │  4321   │  openmsx -control stdio  │
+│        │ (text protocol) │ ◄────── │  of -control tcp:port    │
+│        ▼                 │ events  │                          │
+│   ROM-load / save-state  │         │  framebuffer→SDL2→display│
+│   gamepad-passthrough    │         │  audio→SDL2→pulseaudio   │
+└──────────────────────────┘         └──────────────────────────┘
+```
+
+UI start `openmsx-headless-stub` (in v0.0.3 — voor nu is openMSX zelf met `-control stdio` voldoende), stuurt control-commands (`load_rom`, `savestate`, `set_machine`, `quit`), ontvangt events (`update FPS`, `framebuffer ready`).
+
+**Voordelen subprocess-pattern:**
+- Crash van core ≠ crash van UI → user kan diagnostiek tonen
+- AGPL-3.0 + openMSX GPL-2.0 koppeling: subprocess = "aggregate" niet "derivative" → schone licentie-grens
+- openMSX-upstream blijft onafhankelijk → upstream-first (P-SDM-01) eenvoudiger
+- Test-isolatie: UI test los van core
+
+**Nadelen:**
+- IPC-overhead (verwaarloosbaar voor MSX-frame-rate)
+- Gamepad-events moeten dubbelheen → gemitigeerd via SDL2-shared-state of via Steam Input doorgeven aan core direct (voorkeur)
+
+## openMSX-commit-pin
+
+| Aspect | Waarde |
+|---|---|
+| Tag | `RELEASE_21_0` |
+| Commit | `cb61db762` |
+| Fork | `cpaglebbeek/openMSX-steamdeckmsx` |
+| Upstream | `openMSX/openMSX` |
+| Sync-regel | Stream_Server moet **identieke commit** gebruiken (zie `Meta_SteamDeckMSX/docs/DEPENDENCIES.md` save-state-compat) |
+
+Bump van commit = **Oranje** (kan game-compat raken). Regression-corpus: Bubble Bobble / Metal Gear / Nemesis (testset).

@@ -1,8 +1,8 @@
 ---
 date: 2026-05-31
 repo: SteamDeckMSX_Native
-status: open
-resume: "verder met SteamDeckMSX_Native v0.0.2 — openMSX submodule toevoegen + Qt6/GTK4-beslissing + vanilla openMSX build op Mac"
+status: done
+resume: ""
 ---
 
 # Sessie 2026-05-31 — newp SteamDeckMSX_Native (variant 1)
