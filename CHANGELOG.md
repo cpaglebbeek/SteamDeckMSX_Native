@@ -25,11 +25,12 @@
 - Nieuw subprocess-koppelingsdiagram (UI-Qt6 ↔ openmsx -control TCP/stdio)
 - openMSX-commit-pin gedocumenteerd (cross-repo sync-regel met Stream_Server)
 
-### Smoke-test
-- Vanilla openMSX build poging op Mac (homemade Make build-system, niet CMake)
-- brew deps geïnstalleerd: sdl2_ttf, glew, tcl-tk (9.0.3), libogg, libvorbis, theora
-- Build-resultaat: zie sessie-MD `prompts/2026-05-31_v0.0.2_native_decisions.md`
-- Mac = geen support-target (P-SDM-08); falen acceptabel
+### Smoke-test — ✅ openMSX RELEASE_21_0 schoon gebouwd op Mac
+- brew deps geïnstalleerd: sdl2_ttf, glew, tcl-tk 9.0.3, libogg, libvorbis, theora
+- `make -j 8` → EXIT=0, ~2 min, binary `derived/x86_64-darwin-opt/bin/openmsx` (Mach-O 64-bit)
+- Linker-warnings cosmetisch (Homebrew SDK 14.0 vs openMSX-default 10.15)
+- Niet getest op runtime (P-SDM-08); Mac ≠ support-target
+- Conclusie: submodule-pin werkbaar; Flatpak-build v0.0.3 zal vergelijkbaar zijn
 
 ## v0.0.1-BubbleBobble (2026-05-31) — Skeleton
 
