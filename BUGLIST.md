@@ -6,7 +6,30 @@
 
 _(geen tot v0.0.3-Mac-smoke-build is gevalideerd)_
 
+## Open
+
+### BUG-004 — Geel (runtime) — OPENMSX_SYSTEM_DATA env-var ontbreekt voor Mac dev-fallback
+- **Datum:** 2026-05-31 (v0.0.4-Aleste, geobserveerd, niet gefixt)
+- **Symptoom:** `Couldn't find machines/C-BIOS_MSX2+.xml in any of: ~/.openMSX/share, <repo>/externals/openmsx/share` bij directe aanroep van `bin/openmsx`
+- **RCA functioneel:** Mac-dev-binary draait niet zonder share-data
+- **RCA technisch:** openMSX bindist (`.app/Contents/Resources/share`) bevat machine-configs; standalone bin/openmsx zoekt elders
+- **RCA architectonisch:** Flatpak heeft via `/app/share/openmsx` impliciet; Mac dev-fallback heeft expliciet env-var nodig
+- **Beoogde fix v0.0.5:** Voeg `dataPath` property toe aan OpenmsxLocator; MsxCore zet `OPENMSX_SYSTEM_DATA` op QProcess::setEnvironment
+- **Impact nu:** geen — Mac is niet-support-target (P-SDM-08); Flatpak werkt naar verwachting
+
 ## Opgelost
+
+### BUG-005 — Geel (build) — test_msxcore mist Qt6::Qml link
+- **Datum:** 2026-05-31 (v0.0.4-Aleste)
+- **Symptoom:** `'qqmlregistration.h' file not found` in test_msxcore.cc build
+- **RCA:** MsxCore.h gebruikt `QML_ELEMENT` macro die qqmlregistration.h header vereist; test linkt alleen Qt6::Core+Test
+- **Fix:** `target_link_libraries(test_msxcore PRIVATE Qt6::Core Qt6::Qml Qt6::Test)` in tests/CMakeLists.txt
+
+### BUG-003 — Geel (runtime) — `openmsx -version` is unknown option
+- **Datum:** 2026-05-31 (v0.0.4-Aleste)
+- **Symptoom:** Probe-call faalt: `Error parsing command line: -version`
+- **RCA:** openMSX CLI gebruikt GNU-style `--version` (double-dash), niet `-version`
+- **Fix:** MsxCore.cc `probeVersion()`: `-version` → `--version`
 
 ### BUG-001 — Geel (build) — `qt_add_qml_module` dir-conflict met exe-output
 - **Datum:** 2026-05-31 (v0.0.3-Castlevania)

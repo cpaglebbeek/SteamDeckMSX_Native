@@ -6,11 +6,10 @@
 #include <qqmlregistration.h>
 
 struct CartridgeEntry {
-    QString title;
-    QString year;
-    QString publisher;
-    QString machine;       // MSX1 / MSX2 / MSX2+ / TurboR
-    QString romPath;       // leeg in v0.0.3 — dummy data
+    QString title;          // display title (filename stem)
+    QString romPath;        // absolute path; empty == sentinel
+    qint64  lastUsedUnix;   // sort key for recents
+    QString machine;        // MSX1/MSX2/MSX2+/TurboR — heuristic, default MSX2
 };
 
 class CartridgeModel : public QAbstractListModel {
@@ -20,10 +19,10 @@ class CartridgeModel : public QAbstractListModel {
 public:
     enum Roles {
         TitleRole = Qt::UserRole + 1,
-        YearRole,
-        PublisherRole,
+        RomPathRole,
         MachineRole,
-        RomPathRole
+        IsSentinelRole,
+        LastUsedRole
     };
 
     explicit CartridgeModel(QObject *parent = nullptr);
@@ -32,6 +31,17 @@ public:
     QVariant data(const QModelIndex &index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
 
+public slots:
+    void addRom(const QString &path);
+    void clearRecents();
+
+signals:
+    void recentsChanged();
+
 private:
+    void load();
+    void persist();
+
+    static constexpr int kMaxRecents = 8;
     QVector<CartridgeEntry> m_entries;
 };

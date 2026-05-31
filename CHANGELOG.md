@@ -1,5 +1,75 @@
 # CHANGELOG — SteamDeckMSX_Native
 
+## v0.0.4-Aleste (2026-05-31) — ROM-loading flow + openMSX IPC
+
+### MsxCore — state-machine + subprocess-IPC
+- 7-state enum (Idle/Probing/Probed/Booting/Running/Quitting/Failed) als Q_ENUM,
+  via QML bindable
+- `probeVersion()` — `openmsx --version` (was `-version`, gefixt — BUG-003)
+- `start(romPath="")` — spawn `openmsx -control stdio [-carta <path>]`
+- `stop()` — XML-wrapped `quit` command + 2s graceful + terminate-fallback
+- `loadRom(path)` — als Running: hot-swap via `carta` cmd, anders start()
+- `sendCommand(cmd)` — wrapt in `<command>cmd</command>\n`
+- `parseLine(line)` — v0.0.4 minimaal line-based; XML-stream-detectie voor
+  `<openmsx-output>` (Booting→Running) en `</openmsx-output>` (→Quitting)
+- Stderr aparte log, geen state-impact
+- `eventReceived(line)` signal voor QML-debugging
+
+### OpenmsxLocator — singleton
+- Zoekvolgorde: QSettings user-path → $PATH → `/app/bin/openmsx` (Flatpak) →
+  dev-fallback `externals/openmsx/derived/*/bin/openmsx`
+- QML-toegankelijk via `OpenmsxLocator.found` + `OpenmsxLocator.searched`
+- `setUserPath()` persisteert in QSettings
+
+### CartridgeModel — recent-list + sentinel
+- QAbstractListModel met QSettings persistentie (recent ROMs, max 8)
+- `IsSentinelRole` voor "+ Add ROM…" entry
+- `addRom(path)` — dedupe + LRU-rotate + persist + signal
+- Machine-heuristic per filename (turbor/msx2+/msx2/msx1 detect)
+- Dummy 8 MSX-titels uit v0.0.3 verwijderd — vervangen door echte recent + sentinel
+
+### QML
+- `Main.qml` — FileDialog (QtQuick.Dialogs), state-LED + state-label header,
+  Y-shortcut = stop, openMSX-binary-path in SettingsRow, toast bij start/error
+- `CartridgeBrowser.qml` — Loader delegate (cartridge-card vs add-rom-card)
+- `AddRomCard.qml` — accent-warm gestyled "+ Add ROM…" met file-picker hook
+- `Toast.qml` — info/warning/error overlay, 3s fade
+
+### Tests
+- `tests/test_msxcore.cc` — 6 unit-cases (initial state, path roundtrip,
+  probe-no-path Failed, probe-true Probed, stop-idle no-op, sendCommand-idle warn)
+- Opt-in via `-DSTEAMDECKMSX_BUILD_TESTS=ON`; alle 6 ✅
+
+### Docs
+- `docs/openmsx_control_protocol.md` — XML-stream-formaat, command-set v0.0.4,
+  v0.0.5+ planning, Mac-quirks geobserveerd
+
+### Mac smoke
+- App start ✅ — `SteamDeckMSX 0.0.4-Aleste target= native`
+- Geen QML-warnings, geen runtime-errors
+- Test-suite test_msxcore: 6/6 ✅
+- **Niet end-to-end gemeten:** openMSX-binary heeft op Mac OPENMSX_SYSTEM_DATA
+  env-var nodig om machine-configs te vinden (BUG-003) — niet relevant voor
+  Steam Deck Flatpak (paths in /app/share/openmsx)
+
+### Bug-fixes (allen Geel — sessie-intern)
+- BUG-003 (Geel): `openmsx --version` (not `-version`) — single-dash unknown opt
+- BUG-004 (Geel, gedocumenteerd niet gefixt v0.0.4): OPENMSX_SYSTEM_DATA env-var
+  vereist voor Mac dev-fallback; Flatpak heeft het impliciet via runtime-bundle
+- BUG-005 (Geel): test_msxcore mist Qt6::Qml linkage (qqmlregistration.h in
+  MsxCore.h) — opgelost via tests/CMakeLists.txt link
+
+### Stap 21 (eerste Flatpak-build op Deck) — overgeslagen op verzoek
+Eerste echte Deck-build pas v0.0.5 (samen met share-data env-var fix, mocht
+Flatpak-runtime hetzelfde issue hebben).
+
+### Niet inbegrepen v0.0.4 (gepland v0.0.5+)
+- Echte XML-stream-parser (QXmlStreamReader incremental)
+- D-pad SVG iconen-set
+- C-BIOS machine-selectie-UI
+- Save-state slot-grid
+- Audio/video render-instellingen
+
 ## v0.0.3-Castlevania (2026-05-31) — Eerste runnable code (Qt6/QML)
 
 ### Toegevoegd — code

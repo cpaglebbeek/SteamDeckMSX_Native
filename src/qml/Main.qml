@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Window
 import QtQuick.Controls.Basic
+import QtQuick.Dialogs
 import SteamDeckMSX
 
 ApplicationWindow {
@@ -13,11 +14,39 @@ ApplicationWindow {
 
     MsxCore {
         id: msxCore
-        Component.onCompleted: probeVersion()
+        Component.onCompleted: {
+            if (OpenmsxLocator.found.length > 0) {
+                openmsxPath = OpenmsxLocator.found
+                probeVersion()
+            }
+        }
+        onErrorMessageChanged: {
+            if (errorMessage.length > 0) {
+                toast.show(qsTr("openMSX: ") + errorMessage, "error")
+            }
+        }
     }
 
     CartridgeModel {
         id: cartridges
+    }
+
+    FileDialog {
+        id: romPicker
+        title: qsTr("Selecteer een MSX-ROM, schijf of tape")
+        nameFilters: [
+            qsTr("MSX media (*.rom *.dsk *.cas *.zip)"),
+            qsTr("ROM cartridges (*.rom)"),
+            qsTr("Disk images (*.dsk)"),
+            qsTr("Tape images (*.cas)"),
+            qsTr("Alle bestanden (*)")
+        ]
+        onAccepted: {
+            const path = selectedFile.toString().replace("file://", "")
+            cartridges.addRom(path)
+            msxCore.start(path)
+            toast.show(qsTr("Laden: ") + path.split("/").pop(), "info")
+        }
     }
 
     Rectangle {
@@ -30,11 +59,13 @@ ApplicationWindow {
             spacing: Tokens.space4
 
             // Header
-            Row {
+            Item {
                 width: parent.width
-                spacing: Tokens.space4
+                height: 56
 
                 Text {
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
                     text: qsTr("SteamDeckMSX")
                     color: Tokens.fgPrimary
                     font.family: Tokens.fontFamily
@@ -42,42 +73,111 @@ ApplicationWindow {
                     font.weight: Font.Bold
                     font.letterSpacing: Tokens.fontSizeDisplay * 0.02
                 }
-                Item { width: parent.width - 600; height: 1 }
-                Text {
-                    text: qsTr("openMSX: ") + (msxCore.version.length > 0 ? msxCore.version : qsTr("─ ") + msxCore.status)
-                    color: Tokens.fgSecondary
-                    font.family: Tokens.fontFamilyMono
-                    font.pixelSize: Tokens.fontSizeMono
+
+                Row {
+                    anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
+                    spacing: Tokens.space4
+
+                    Text {
+                        text: qsTr("openMSX: ") +
+                              (msxCore.version.length > 0 ? msxCore.version : "─")
+                        color: Tokens.fgSecondary
+                        font.family: Tokens.fontFamilyMono
+                        font.pixelSize: Tokens.fontSizeMono
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Rectangle {
+                        width: 12; height: 12; radius: 6
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: {
+                            switch (msxCore.state) {
+                                case MsxCore.Running:  return Tokens.accentPrimary
+                                case MsxCore.Booting:  return Tokens.accentWarm
+                                case MsxCore.Probed:   return Tokens.accentInfo
+                                case MsxCore.Failed:   return Tokens.accentError
+                                default:               return Tokens.fgDisabled
+                            }
+                        }
+                    }
+                    Text {
+                        text: msxCore.stateLabel
+                        color: Tokens.fgSecondary
+                        font.family: Tokens.fontFamilyMono
+                        font.pixelSize: Tokens.fontSizeMono
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
                 }
             }
 
-            // Cartridge browser
+            // Cartridge browser (with recent + sentinel)
             CartridgeBrowser {
                 id: browser
                 model: cartridges
                 width: parent.width
                 height: parent.height - 240
                 focus: true
-                onActivated: function(index) {
-                    var t = cartridges.data(cartridges.index(index, 0), Qt.UserRole + 1)
-                    console.log("[v0.0.3] activate placeholder:", t)
+                onActivated: function(index, entry) {
+                    if (entry.isSentinel) {
+                        romPicker.open()
+                    } else if (entry.romPath && entry.romPath.length > 0) {
+                        msxCore.start(entry.romPath)
+                        toast.show(qsTr("Start: ") + entry.title, "info")
+                    }
                 }
             }
 
-            // Settings stub
-            SettingsRow {
+            // Footer: stop + settings hint
+            Row {
                 width: parent.width
-                label: qsTr("BIOS-pad")
-                value: qsTr("(niet geconfigureerd — v0.0.4)")
+                spacing: Tokens.space4
+
+                Rectangle {
+                    width: 200; height: Tokens.minInteractive
+                    color: msxCore.state === MsxCore.Running ? Tokens.accentError : Tokens.bgElevated
+                    border.color: Tokens.borderSubtle
+                    border.width: 1
+                    radius: 4
+                    visible: msxCore.state === MsxCore.Running || msxCore.state === MsxCore.Booting
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: qsTr("Y · Stop")
+                        color: Tokens.fgPrimary
+                        font.family: Tokens.fontFamily
+                        font.pixelSize: Tokens.fontSizeBody
+                        font.weight: Font.DemiBold
+                    }
+                }
+
+                SettingsRow {
+                    width: parent.width - 200 - Tokens.space4
+                    label: qsTr("openmsx-binary")
+                    value: OpenmsxLocator.found.length > 0
+                        ? OpenmsxLocator.found
+                        : qsTr("(niet gevonden — searched: ") +
+                              OpenmsxLocator.searched.join(", ") + ")"
+                }
             }
         }
     }
 
-    // Globale toets: Esc / B = back (v0.0.3 = quit). Window erft van Window
-    // niet van Item — gebruik Shortcut i.p.v. Keys.onPressed (P-SDM Qt6-quirk).
+    Toast {
+        id: toast
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: Tokens.space5
+        anchors.horizontalCenter: parent.horizontalCenter
+    }
+
+    Shortcut { sequences: ["Escape", "B"]; onActivated: Qt.quit() }
     Shortcut {
-        sequences: ["Escape", "B"]
-        onActivated: Qt.quit()
+        sequences: ["Y"]
+        onActivated: {
+            if (msxCore.state === MsxCore.Running ||
+                msxCore.state === MsxCore.Booting) {
+                msxCore.stop()
+                toast.show(qsTr("Stopping openMSX…"), "warning")
+            }
+        }
     }
 }

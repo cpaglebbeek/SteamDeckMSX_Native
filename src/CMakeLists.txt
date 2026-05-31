@@ -4,11 +4,16 @@ qt_add_executable(steamdeckmsx_app
     MsxCore.cc
     CartridgeModel.h
     CartridgeModel.cc
+    OpenmsxLocator.h
+    OpenmsxLocator.cc
 )
 
 set_source_files_properties(qml/Tokens.qml PROPERTIES
     QT_QML_SINGLETON_TYPE TRUE
 )
+
+# Quick.Dialogs voor FileDialog op alle platformen (Flatpak portal binnen sandbox)
+find_package(Qt6 REQUIRED COMPONENTS QuickDialogs2)
 
 qt_add_qml_module(steamdeckmsx_app
     URI SteamDeckMSX
@@ -18,7 +23,9 @@ qt_add_qml_module(steamdeckmsx_app
         qml/Main.qml
         qml/CartridgeBrowser.qml
         qml/CartridgeCard.qml
+        qml/AddRomCard.qml
         qml/SettingsRow.qml
+        qml/Toast.qml
 )
 
 target_link_libraries(steamdeckmsx_app PRIVATE
@@ -26,6 +33,7 @@ target_link_libraries(steamdeckmsx_app PRIVATE
     Qt6::Gui
     Qt6::Qml
     Qt6::Quick
+    Qt6::QuickDialogs2
     Qt6::Network
 )
 
