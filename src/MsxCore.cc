@@ -178,6 +178,18 @@ void MsxCore::requestMachineList()
     sendCommand(QStringLiteral("machine_info machines"));
 }
 
+int MsxCore::savestate(const QString &name)
+{
+    if (name.isEmpty()) return -1;
+    return sendCommand(QStringLiteral("savestate \"%1\"").arg(name));
+}
+
+int MsxCore::loadstate(const QString &name)
+{
+    if (name.isEmpty()) return -1;
+    return sendCommand(QStringLiteral("loadstate \"%1\"").arg(name));
+}
+
 void MsxCore::onReadyRead()
 {
     const QByteArray chunk = m_process.readAllStandardOutput();

@@ -8,6 +8,8 @@ qt_add_executable(steamdeckmsx_app
     OpenmsxLocator.cc
     MachineModel.h
     MachineModel.cc
+    SaveStateModel.h
+    SaveStateModel.cc
 )
 
 set_source_files_properties(qml/Tokens.qml PROPERTIES
@@ -15,7 +17,7 @@ set_source_files_properties(qml/Tokens.qml PROPERTIES
 )
 
 # Quick.Dialogs voor FileDialog op alle platformen (Flatpak portal binnen sandbox)
-find_package(Qt6 REQUIRED COMPONENTS QuickDialogs2)
+find_package(Qt6 REQUIRED COMPONENTS QuickDialogs2 Svg)
 
 qt_add_qml_module(steamdeckmsx_app
     URI SteamDeckMSX
@@ -29,6 +31,17 @@ qt_add_qml_module(steamdeckmsx_app
         qml/SettingsRow.qml
         qml/Toast.qml
         qml/MachineSelector.qml
+        qml/SaveStateOverlay.qml
+        qml/SaveStateCard.qml
+    RESOURCES
+        assets/icons/dpad/up.svg
+        assets/icons/dpad/down.svg
+        assets/icons/dpad/left.svg
+        assets/icons/dpad/right.svg
+        assets/icons/btn/a.svg
+        assets/icons/btn/b.svg
+        assets/icons/btn/x.svg
+        assets/icons/btn/y.svg
 )
 
 target_link_libraries(steamdeckmsx_app PRIVATE
@@ -37,6 +50,7 @@ target_link_libraries(steamdeckmsx_app PRIVATE
     Qt6::Qml
     Qt6::Quick
     Qt6::QuickDialogs2
+    Qt6::Svg
     Qt6::Network
 )
 

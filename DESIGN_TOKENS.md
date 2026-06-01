@@ -65,22 +65,32 @@ Qt6 default. Op Steam Deck zijn Noto Sans + Noto Sans Mono beschikbaar via Freed
 
 Cartridge-browser uses `--space-4` tussen kaarten en `--space-3` interne padding.
 
-## Iconen
+## Iconen — v0.0.6 (PenguinAdventure)
 
-Op Steam Deck zonder cursor: iconen + tekst beide. **D-pad icoon-set (eigen, SVG, mono):**
+Op Steam Deck zonder cursor: iconen + tekst beide. **Eigen SVG icoon-set (AGPL-compatible)**, geleverd via qt_add_qml_module RESOURCES.
 
-| Icoon | Doel |
-|---|---|
-| `dpad-up.svg` | "Boven" hint |
-| `dpad-down.svg` | "Onder" hint |
-| `btn-a.svg` | A-knop = bevestigen |
-| `btn-b.svg` | B-knop = terug |
-| `btn-x.svg` | X-knop = quick-save |
-| `btn-y.svg` | Y-knop = menu |
-| `bumper-l1.svg` / `r1.svg` | Tab-wisseling |
-| `trigger-l2.svg` / `r2.svg` | Snelle-scroll-modus |
+### Set v0.0.6 (8 files, ~5KB totaal)
 
-Iconen passen kleur aan via `currentColor` (Qt6 stylesheet-friendly).
+| Pad in repo | Tokens-constant | Doel |
+|---|---|---|
+| `src/assets/icons/dpad/up.svg`    | `Tokens.iconDpadUp`    | "Boven" hint |
+| `src/assets/icons/dpad/down.svg`  | `Tokens.iconDpadDown`  | "Onder" hint |
+| `src/assets/icons/dpad/left.svg`  | `Tokens.iconDpadLeft`  | "Links" hint |
+| `src/assets/icons/dpad/right.svg` | `Tokens.iconDpadRight` | "Rechts" hint |
+| `src/assets/icons/btn/a.svg`      | `Tokens.iconBtnA`      | A-knop = bevestigen / save / load |
+| `src/assets/icons/btn/b.svg`      | `Tokens.iconBtnB`      | B-knop = terug / sluit overlay |
+| `src/assets/icons/btn/x.svg`      | `Tokens.iconBtnX`      | X-knop = save-state overlay |
+| `src/assets/icons/btn/y.svg`      | `Tokens.iconBtnY`      | Y-knop = stop emulator / clear slot |
+
+### Gepland v0.0.7+
+- `bumper/l1.svg` / `r1.svg` — Tab-wisseling
+- `trigger/l2.svg` / `r2.svg` — Snelle-scroll-modus
+- Colorize-shader voor dynamic tint (huidige: white-on-currentColor)
+
+### Render-conventie
+- ViewBox `0 0 64 64`
+- Stroke = `currentColor`, fill-opacity 0.15 voor "glas-effect"
+- Qt6 `Image { source: Tokens.iconXxx; sourceSize: Qt.size(W,W) }` met AOT-cache
 
 ## Componenten — basis-set v0.0.3
 

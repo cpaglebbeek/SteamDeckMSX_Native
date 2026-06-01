@@ -45,4 +45,15 @@ QtObject {
     readonly property int motionFast:  120
     readonly property int motionBase:  220
     readonly property int motionSlow:  480
+
+    // Icon-resource-paths (auto-generated qrc-prefix per qt_add_qml_module).
+    // Modulair: alle icons via currentColor → Qt6 Image laadt SVG met sourceSize.
+    readonly property string iconDpadUp:    "qrc:/qt/qml/SteamDeckMSX/assets/icons/dpad/up.svg"
+    readonly property string iconDpadDown:  "qrc:/qt/qml/SteamDeckMSX/assets/icons/dpad/down.svg"
+    readonly property string iconDpadLeft:  "qrc:/qt/qml/SteamDeckMSX/assets/icons/dpad/left.svg"
+    readonly property string iconDpadRight: "qrc:/qt/qml/SteamDeckMSX/assets/icons/dpad/right.svg"
+    readonly property string iconBtnA:      "qrc:/qt/qml/SteamDeckMSX/assets/icons/btn/a.svg"
+    readonly property string iconBtnB:      "qrc:/qt/qml/SteamDeckMSX/assets/icons/btn/b.svg"
+    readonly property string iconBtnX:      "qrc:/qt/qml/SteamDeckMSX/assets/icons/btn/x.svg"
+    readonly property string iconBtnY:      "qrc:/qt/qml/SteamDeckMSX/assets/icons/btn/y.svg"
 }

@@ -1,5 +1,53 @@
 # CHANGELOG — SteamDeckMSX_Native
 
+## v0.0.6-PenguinAdventure (2026-06-01) — D-pad iconen + save-state slot-grid
+
+### Iconen — 8 eigen SVGs (AGPL-compatible)
+- `src/assets/icons/dpad/{up,down,left,right}.svg` — minimal driehoeken,
+  `currentColor` strokes (Qt6 SVG-render compat)
+- `src/assets/icons/btn/{a,b,x,y}.svg` — cirkel met letter
+- 64×64 viewBox, ~5KB totaal voor alle 8
+- Tokens.qml: `iconDpadUp/Down/Left/Right` + `iconBtnA/B/X/Y` path-constants
+  (qrc:/qt/qml/SteamDeckMSX/assets/icons/...)
+- `CMakeLists.txt`: Qt6::Svg toegevoegd, 8 SVGs in RESOURCES van qt_add_qml_module
+
+### Save-state slot-grid
+- **MsxCore**: `savestate(name)` + `loadstate(name)` slots — Tcl-cmd-wrappers
+  (`savestate "<name>"` / `loadstate "<name>"`), retourneren command-id
+- **SaveStateModel** (nieuw, ~180 regels) — QAbstractListModel met:
+  - 10 vaste slots (MSX-traditie 0..9)
+  - QSettings persist per slot: occupied/rom/name/timestamp
+  - "Stage save" pattern: model-state updaten ook zonder core attached;
+    Tcl-cmd alleen als core en running
+  - Naam-conventie: `slot_<N>_<rom_stem>` (default `slot_<N>_nopath`)
+  - Roles: SlotRole/NameRole/RomStemRole/LastUsedRole/OccupiedRole/LabelRole
+  - Q_INVOKABLE saveTo/loadFrom/clear voor QML
+- **SaveStateOverlay.qml** — modaal Popup, 5×2 GridView, X-shortcut opent,
+  A = save/load (afhankelijk van occupied), Y = clear, B/Esc = close
+- **SaveStateCard.qml** — slot-tile met nummer + naam + timestamp + Save/Load hint
+- **Main.qml** integration:
+  - SaveStateModel id `saves`, currentRomStem auto-derived van msxCore.currentRom
+  - Overlay-instance op Overlay.overlay parent
+  - Shortcut "X" → opent overlay alleen als state = Running, anders warning-toast
+
+### Tests 10 → 17 cases (2 binaries)
+- **test_msxcore**: ongewijzigd 10/10 ✅
+- **test_savestatemodel** (nieuw, 7 cases) ✅:
+  - T1: Initial state — 10 slots, alle empty
+  - T2: saveTo zonder core → -1 maar model-state wel geupdate
+  - T3: saveTo + persistence roundtrip via nieuwe instance
+  - T4: clear()
+  - T5: LabelRole formatting ("Slot N · <stem> · <ts>" of "Slot N · empty")
+  - T6: loadFrom van empty slot → -1
+  - T7: out-of-range slots safe (no crash)
+
+### Niet inbegrepen v0.0.6 (gepland v0.0.7+)
+- **Stap 21 — eerste Flatpak-build op Steam Deck** (5e poging skip)
+- Save-state thumbnails (vereist openMSX framebuffer-extract)
+- Steam Input preset
+- Icoon-colorize per status (huidig: white-on-black fixed)
+- Stream_Server-werk (andere sessie)
+
 ## v0.0.5-SolidSnake (2026-05-31) — XML-stream-parser + BUG-004 fix + machine-keuze
 
 ### BUG-004 fix — OPENMSX_SYSTEM_DATA env-var

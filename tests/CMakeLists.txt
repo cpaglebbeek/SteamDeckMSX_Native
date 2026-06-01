@@ -13,3 +13,16 @@ set_target_properties(test_msxcore PROPERTIES AUTOMOC ON)
 target_include_directories(test_msxcore PRIVATE ../src)
 target_link_libraries(test_msxcore PRIVATE Qt6::Core Qt6::Qml Qt6::Test)
 add_test(NAME msxcore_smoke COMMAND test_msxcore)
+
+# SaveStateModel persistence + state-machine smoke
+add_executable(test_savestatemodel
+    test_savestatemodel.cc
+    ../src/SaveStateModel.cc
+    ../src/SaveStateModel.h
+    ../src/MsxCore.cc
+    ../src/MsxCore.h
+)
+set_target_properties(test_savestatemodel PROPERTIES AUTOMOC ON)
+target_include_directories(test_savestatemodel PRIVATE ../src)
+target_link_libraries(test_savestatemodel PRIVATE Qt6::Core Qt6::Qml Qt6::Test)
+add_test(NAME savestatemodel_smoke COMMAND test_savestatemodel)

@@ -55,6 +55,9 @@ public slots:
     // Returns the assigned command-id (>= 1). Reply will arrive on replyReceived(id, ...).
     int sendCommand(const QString &cmd);
     void requestMachineList();
+    // Save-state primitives — wrappen Tcl-commands `savestate <name>` / `loadstate <name>`.
+    int savestate(const QString &name);
+    int loadstate(const QString &name);
 
 signals:
     void stateChanged();

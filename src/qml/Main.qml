@@ -49,6 +49,18 @@ ApplicationWindow {
         }
     }
 
+    SaveStateModel {
+        id: saves
+        core: msxCore
+        currentRomStem: {
+            const r = msxCore.currentRom
+            if (r.length === 0) return ""
+            const fn = r.split("/").pop()
+            const dot = fn.lastIndexOf(".")
+            return dot > 0 ? fn.substring(0, dot) : fn
+        }
+    }
+
     CartridgeModel {
         id: cartridges
     }
@@ -200,6 +212,23 @@ ApplicationWindow {
         anchors.horizontalCenter: parent.horizontalCenter
     }
 
+    SaveStateOverlay {
+        id: savesOverlay
+        parent: Overlay.overlay
+        model: saves
+        currentRomStem: saves.currentRomStem
+        onSlotActivated: function(slot, wasOccupied) {
+            if (wasOccupied) {
+                saves.loadFrom(slot)
+                toast.show(qsTr("Load slot ") + slot, "info")
+            } else {
+                saves.saveTo(slot)
+                toast.show(qsTr("Save slot ") + slot, "info")
+            }
+            savesOverlay.close()
+        }
+    }
+
     Shortcut { sequences: ["Escape", "B"]; onActivated: Qt.quit() }
     Shortcut {
         sequences: ["Y"]
@@ -208,6 +237,16 @@ ApplicationWindow {
                 msxCore.state === MsxCore.Booting) {
                 msxCore.stop()
                 toast.show(qsTr("Stopping openMSX…"), "warning")
+            }
+        }
+    }
+    Shortcut {
+        sequences: ["X"]
+        onActivated: {
+            if (msxCore.state === MsxCore.Running) {
+                savesOverlay.open()
+            } else {
+                toast.show(qsTr("Save-states alleen tijdens spel (X-toets)"), "warning")
             }
         }
     }
