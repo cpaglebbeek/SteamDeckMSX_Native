@@ -42,6 +42,10 @@ qt_add_qml_module(steamdeckmsx_app
         assets/icons/btn/b.svg
         assets/icons/btn/x.svg
         assets/icons/btn/y.svg
+        assets/icons/bumper/l1.svg
+        assets/icons/bumper/r1.svg
+        assets/icons/trigger/l2.svg
+        assets/icons/trigger/r2.svg
 )
 
 target_link_libraries(steamdeckmsx_app PRIVATE

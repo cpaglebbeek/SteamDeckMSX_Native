@@ -1,5 +1,52 @@
 # CHANGELOG — SteamDeckMSX_Native
 
+## v0.0.7-Castlevania (2026-06-07) — Bumper + trigger iconen (groen)
+
+### Iconen — 4 nieuwe SVGs (icoon-set 8 → 12)
+- `src/assets/icons/bumper/{l1,r1}.svg` — afgeronde rechthoek (`rx=11`),
+  52×22 body, label `L1`/`R1` 14pt 700 (Noto Sans). Suggereert schouder-knop.
+- `src/assets/icons/trigger/{l2,r2}.svg` — trapezium (boven breder dan onder),
+  label `L2`/`R2` 14pt 700. Suggereert "indrukken" gebaar.
+- Render-conventie ongewijzigd: 64×64 viewBox, `currentColor` stroke 3px,
+  fill-opacity 0.15 — consistent met dpad/btn-families.
+- Totaal repo-impact: +4 files, ~1.7KB.
+
+### Tokens uitgebreid
+- `Tokens.qml`: `iconBumperL1`, `iconBumperR1`, `iconTriggerL2`, `iconTriggerR2`
+  als `qrc:/qt/qml/SteamDeckMSX/assets/icons/{bumper,trigger}/...svg`.
+- `src/CMakeLists.txt` RESOURCES uitgebreid met 4 paden.
+
+### DESIGN_TOKENS.md
+- Iconen-sectie hernoemd "Set v0.0.7 (12 files)".
+- Nieuwe sub-sectie "Vorm-conventies per familie" met semantiek-rationale:
+  d-pad = driehoek, button = cirkel+letter, bumper = rounded rect, trigger = trapezium.
+- "Gepland v0.0.7+" → "Gepland v0.0.8+" (colorize-shader + thumbnails + BIOS-detect).
+
+### Doel-mapping (semantisch, voorlopig)
+- Bumpers L1/R1 = vorige/volgende tab in CartridgeBrowser of save-state-pagina
+- Triggers L2/R2 = snelle-scroll-modus in lange lijsten (pageDown/pageUp gedrag)
+
+### Wat NIET in deze release
+- **Geen QML-component nog die deze iconen gebruikt** — vereist v0.0.8 UI-koppeling
+  in `CartridgeBrowser.qml` (tab-strip) + `SaveStateOverlay.qml` (pagina-pijlen).
+- **Geen Stap 21 Flatpak-build** (vereist Steam Deck SSH-info — apart resume-item).
+- **Geen thumbnails-implementatie** (verschoven naar v0.0.8 — vereist openMSX
+  framebuffer XML-stream parse + base64 → QImage).
+- **Geen BIOS-detect-heuristic** (verschoven naar v0.0.8).
+
+### Tests
+- Geen testcode-impact: SVG-toevoeging is pure RESOURCES-uitbreiding.
+- `test_msxcore` (10/10) + `test_savestatemodel` (7/7) blijven groen — niet uitgevoerd
+  in deze sessie omdat geen src/core- of src/model-wijzigingen plaatsvonden.
+
+### Codenaam — Castlevania
+Konami MSX2-klassieker 1986 ("Akumajou Dracula"). Uit vrije pool van Meta-repo.
+Verschoven van "Vrije pool" naar "Toegewezen" in `Meta_SteamDeckMSX/CLAUDE.md`.
+
+### Kleurcode: GROEN (+0.0.1)
+Pure UI-asset-toevoeging zonder openMSX-patch, zonder architectuur-impact,
+zonder logica-wijziging. Tokens-pad-uitbreiding is additief.
+
 ## v0.0.6-PenguinAdventure (2026-06-01) — D-pad iconen + save-state slot-grid
 
 ### Iconen — 8 eigen SVGs (AGPL-compatible)
