@@ -1,5 +1,73 @@
 # CHANGELOG — SteamDeckMSX_Native
 
+## v0.0.8-Snatcher (2026-06-07) — RomTypeDetector + L1/R1 page-jump (oranje)
+
+### RomTypeDetector — heuristische BIOS-detect per ROM-bytes
+- `src/RomTypeDetector.{h,cc}` (~110 regels) — pure static-functie-klasse:
+  - `enum Generation { Unknown, MSX1, MSX2, MSX2plus }`
+  - `enum Mapper { Unknown, Plain, Konami, KonamiSCC, Ascii8, Ascii16 }`
+  - `struct Result { generation, mapper, suggestedMachine, reason }`
+  - `Result detect(QByteArray)` + helpers `detectGeneration`, `detectMapper`, `hasScc`
+- **Heuristiek v0.0.8 (licht):**
+  - ≤ 32KB → MSX1 + Plain → `C-BIOS_MSX1`
+  - > 32KB + SCC-pattern (Z80 `3E 9F 32 B0 80` anywhere) → MSX2 + Konami SCC
+  - > 32KB zonder SCC → MSX2 + Konami (default)
+  - leeg / kapot → fallback `C-BIOS_MSX2`
+- **Niet** in v0.0.8: softwaredb-hash-match (vereist `softwaredb.xml`-parse — v0.0.9), Ascii8/16-detect, ROM-header-parse — verschoven.
+
+### Integratie in MsxCore::loadRom — log-only
+- `MsxCore::loadRom()` opent ROM (max 512KB read voor I/O-cap), draait
+  `RomTypeDetector::detect()`, logt resultaat met `qInfo()`.
+- **Geen `setCurrentMachine` automatiek nog** — eerst real-world-accuratesse
+  valideren via logs over meerdere ROMs. Auto-switch verschuift naar v0.0.9
+  zodra softwaredb-fallback klaar is.
+
+### CartridgeBrowser.qml — L1/R1 page-jump
+- `Keys.onPressed` uitgebreid:
+  - `Qt.Key_PageUp` → `currentIndex -= pageJump` (5 items, clamped)
+  - `Qt.Key_PageDown` → `currentIndex += pageJump`
+- Steam Input mapt L1/R1 op PageUp/PageDown via launcher-preset (v0.0.9
+  zal aparte browser-preset toevoegen onderscheiden van game-preset
+  `Stream_Client/presets/msx-gamepad.vdf`).
+- Bestaande A/Enter/Space-activate ongewijzigd.
+
+### Tests — 17 → 25 cases (3 binaries)
+- `test_msxcore` (10/10) ongewijzigd
+- `test_savestatemodel` (7/7) ongewijzigd
+- **`test_romtypedetector` (8/8 nieuw)**:
+  - T1: lege ROM → Unknown + fallback machine
+  - T2: 8KB plain → MSX1 + Plain + `C-BIOS_MSX1`
+  - T3: 32KB plain (grenscase MSX1)
+  - T4: 33KB (grenscase MSX2)
+  - T5: 64KB zonder SCC → MSX2 + Konami
+  - T6: 64KB met SCC-pattern op offset 0x100 → MSX2 + KonamiSCC
+  - T7: 256KB met SCC-pattern op offset 0x40000 → MSX2 + KonamiSCC
+  - T8: helpers `generationName`/`mapperName`
+
+### CMakeLists updates
+- `src/CMakeLists.txt`: `RomTypeDetector.{h,cc}` toegevoegd aan `qt_add_executable`
+- `tests/CMakeLists.txt`: `test_romtypedetector` target + `add_test` registratie
+
+### Wat NIET in deze release
+- **Geen `setCurrentMachine` automatiek** — log-only voor accuratesse-validatie
+- **Geen softwaredb-hash-match** — verschoven naar v0.0.9
+- **Geen Ascii8/16-mapper-detect** — v0.0.9
+- **Geen Flatpak-build op Deck** — vereist SSH-info Deck (v0.0.9 of later, apart resume-item)
+- **Geen thumbnails save-state** — verschoven naar v0.0.9 (openMSX framebuffer XML-extract)
+- **Geen tab-strip in CartridgeBrowser** — vereist Main.qml-restructuur (v0.0.9 met
+  visuele wireframes uit `Meta_SteamDeckMSX/docs/screens/01_library.md`)
+- **Geen build/test-run in deze sessie** — Mac smoke-test verschuift naar volgende
+  sessie (geen `cmake --preset native-debug` gedraaid; codewise klaar)
+
+### Codenaam — Snatcher
+Konami MSX2 1988 cyberpunk-adventure (Hideo Kojima's regie-debut). Past bij
+"detective-werk" — heuristisch onderzoek naar wat de ROM eigenlijk is.
+
+### Kleurcode: ORANJE (+0.1.0)
+Nieuwe component `RomTypeDetector` in src/ + nieuwe test-binary +
+QML-event-handler-uitbreiding = nieuwe component, geen architectuur-wijziging.
+Conform `CLAUDE.md` § Color-Coded.
+
 ## v0.0.7-Castlevania (2026-06-07) — Bumper + trigger iconen (groen)
 
 ### Iconen — 4 nieuwe SVGs (icoon-set 8 → 12)

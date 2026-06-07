@@ -41,6 +41,11 @@ ListView {
         }
     }
 
+    // v0.0.8-Snatcher: L1/R1 = page-up/page-down (5 items per keer) voor snelle
+    // navigatie in lange ROM-lijsten. Steam Input mapt L1/R1 op PageUp/PageDown
+    // via launcher-preset (v0.0.9 buiten Gaming Mode; voor nu KB-events).
+    readonly property int pageJump: 5
+
     Keys.onPressed: function(event) {
         if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter ||
             event.key === Qt.Key_A || event.key === Qt.Key_Space) {
@@ -53,6 +58,12 @@ ListView {
                 isSentinel: m.data(m.index(idx, 0), Qt.UserRole + 4),
             }
             list.activated(idx, entry)
+            event.accepted = true
+        } else if (event.key === Qt.Key_PageUp) {
+            list.currentIndex = Math.max(0, list.currentIndex - list.pageJump)
+            event.accepted = true
+        } else if (event.key === Qt.Key_PageDown) {
+            list.currentIndex = Math.min(list.count - 1, list.currentIndex + list.pageJump)
             event.accepted = true
         }
     }

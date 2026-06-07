@@ -1,5 +1,7 @@
 #include "MsxCore.h"
+#include "RomTypeDetector.h"
 
+#include <QFile>
 #include <QFileInfo>
 #include <QStandardPaths>
 #include <QDebug>
@@ -151,6 +153,28 @@ void MsxCore::stop()
 
 void MsxCore::loadRom(const QString &path)
 {
+    // v0.0.8-Snatcher: BIOS-detect-heuristic log-only.
+    // We zetten currentMachine NOG NIET automatisch (verschuift naar v0.0.9
+    // wanneer softwaredb-hash-match meer betrouwbaarheid biedt). Voor nu:
+    // bij elke ROM-load loggen wat de heuristiek voorstelt, zodat we de
+    // accuratesse kunnen valideren tegen openMSX-softwaredb in komende sessies.
+    {
+        QFile f(path);
+        if (f.open(QIODevice::ReadOnly)) {
+            // Lees maximaal 512KB om I/O-tijd te begrenzen — SCC-pattern zit
+            // in de regel in eerste 64KB; 512KB dekt ook MSX2 mega-ROMs.
+            const QByteArray bytes = f.read(512 * 1024);
+            const auto r = RomTypeDetector::detect(bytes);
+            qInfo().noquote() << "[RomTypeDetector]" << QFileInfo(path).fileName()
+                              << "→" << RomTypeDetector::generationName(r.generation)
+                              << "/" << RomTypeDetector::mapperName(r.mapper)
+                              << "→ suggest" << r.suggestedMachine
+                              << "(" << r.reason << ")";
+        } else {
+            qWarning() << "[RomTypeDetector] kon ROM niet openen:" << path;
+        }
+    }
+
     if (m_state == Running) {
         m_currentRom = path;
         emit currentRomChanged();

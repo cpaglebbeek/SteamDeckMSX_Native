@@ -26,3 +26,13 @@ set_target_properties(test_savestatemodel PROPERTIES AUTOMOC ON)
 target_include_directories(test_savestatemodel PRIVATE ../src)
 target_link_libraries(test_savestatemodel PRIVATE Qt6::Core Qt6::Qml Qt6::Test)
 add_test(NAME savestatemodel_smoke COMMAND test_savestatemodel)
+
+# RomTypeDetector — heuristische BIOS-detect per ROM-bytes (v0.0.8-Snatcher)
+add_executable(test_romtypedetector
+    test_romtypedetector.cc
+    ../src/RomTypeDetector.cc
+    ../src/RomTypeDetector.h
+)
+target_include_directories(test_romtypedetector PRIVATE ../src)
+target_link_libraries(test_romtypedetector PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME romtypedetector_smoke COMMAND test_romtypedetector)

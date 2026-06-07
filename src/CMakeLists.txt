@@ -10,6 +10,8 @@ qt_add_executable(steamdeckmsx_app
     MachineModel.cc
     SaveStateModel.h
     SaveStateModel.cc
+    RomTypeDetector.h
+    RomTypeDetector.cc
 )
 
 set_source_files_properties(qml/Tokens.qml PROPERTIES
