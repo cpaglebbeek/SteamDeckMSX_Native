@@ -56,4 +56,8 @@ QtObject {
     readonly property string iconBtnB:      "qrc:/qt/qml/SteamDeckMSX/assets/icons/btn/b.svg"
     readonly property string iconBtnX:      "qrc:/qt/qml/SteamDeckMSX/assets/icons/btn/x.svg"
     readonly property string iconBtnY:      "qrc:/qt/qml/SteamDeckMSX/assets/icons/btn/y.svg"
+    readonly property string iconBumperL1:  "qrc:/qt/qml/SteamDeckMSX/assets/icons/bumper/l1.svg"
+    readonly property string iconBumperR1:  "qrc:/qt/qml/SteamDeckMSX/assets/icons/bumper/r1.svg"
+    readonly property string iconTriggerL2: "qrc:/qt/qml/SteamDeckMSX/assets/icons/trigger/l2.svg"
+    readonly property string iconTriggerR2: "qrc:/qt/qml/SteamDeckMSX/assets/icons/trigger/r2.svg"
 }
