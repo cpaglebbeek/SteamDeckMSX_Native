@@ -2,6 +2,37 @@
 
 ## v0.0.8-Snatcher (2026-06-07) — RomTypeDetector + L1/R1 page-jump (oranje)
 
+### v0.0.8.1 hotfix (2026-06-07 — zelfde dag) — Mac smoke-test groen
+- **BUG-007 (geel)**: `test_msxcore` + `test_savestatemodel` linker-error
+  na v0.0.8 commit (`fb3fcb0`):
+  ```
+  Undefined symbols: RomTypeDetector::detect(QByteArray const&)
+  ```
+  Oorzaak: `MsxCore::loadRom()` roept `RomTypeDetector::detect` aan;
+  `tests/CMakeLists.txt` ververst beide test-targets met `MsxCore.cc`
+  maar niet de transitive dependency `RomTypeDetector.{h,cc}`.
+  Fix: beide tests linken nu expliciet `../src/RomTypeDetector.{cc,h}`.
+- **BUG-008 (groen)**: `CMakeLists.txt` root `project(VERSION 0.0.6)` +
+  `STEAMDECKMSX_VERSION_CODENAME "PenguinAdventure"` waren niet
+  bijgewerkt in v0.0.7 noch v0.0.8. Beide gecorrigeerd: VERSION → 0.0.8,
+  codename → "Snatcher". Bug-history: dezelfde drift waarschijnlijk in
+  alle eerdere bumps sinds v0.0.6.
+- **Mac smoke-test 2026-06-07**:
+  ```
+  cmake --preset native-debug -DSTEAMDECKMSX_BUILD_TESTS=ON
+  cmake --build build/native-debug
+  ctest --output-on-failure
+  → 100% tests passed, 0 tests failed out of 4
+  → placeholder + msxcore_smoke + savestatemodel_smoke + romtypedetector_smoke
+  → 25 testcases (1 placeholder + 10 + 7 + 8 nieuwe)
+  ```
+- RCA: F=ontbrekende build-dependency; T=transitive-include cpp-bestand
+  niet automatisch gelinkt; A=geen library-target voor src/core (elk test
+  herhaalt directe `.cc`-linking). Verbetering v0.0.9: maak
+  `steamdeckmsx_core` static lib in `src/` voor herbruikbaarheid.
+
+
+
 ### RomTypeDetector — heuristische BIOS-detect per ROM-bytes
 - `src/RomTypeDetector.{h,cc}` (~110 regels) — pure static-functie-klasse:
   - `enum Generation { Unknown, MSX1, MSX2, MSX2plus }`
