@@ -63,6 +63,95 @@ ApplicationWindow {
 
     CartridgeModel {
         id: cartridges
+        onDownloadFinished: function(title, romPath) {
+            toast.show(qsTr("ROM toegevoegd: ") + title, "info")
+            urlImportDialog.busy = false
+            urlImportDialog.close()
+        }
+        onDownloadFailed: function(reason) {
+            toast.show(qsTr("ROM-download faalde: ") + reason, "error")
+            urlImportDialog.busy = false
+        }
+        onDownloadProgress: function(received, total) {
+            if (urlImportDialog.target === "rom") {
+                urlImportDialog.progress = total > 0 ? received / total : 0
+                urlImportDialog.progressLabel = (received / 1024).toFixed(0) + " / "
+                    + (total > 0 ? (total / 1024).toFixed(0) : "?") + " KiB"
+            }
+        }
+    }
+
+    // v0.1.0-Xanadu: BIOS-bibliotheek (DD-007).
+    BiosManager {
+        id: bios
+        onEntryAdded: function(id, fileName) {
+            toast.show(qsTr("BIOS toegevoegd: ") + fileName, "info")
+            urlImportDialog.busy = false
+            urlImportDialog.close()
+        }
+        onAddFailed: function(reason) {
+            toast.show(qsTr("BIOS-add faalde: ") + reason, "error")
+            urlImportDialog.busy = false
+        }
+        onDownloadProgress: function(received, total) {
+            if (urlImportDialog.target === "bios") {
+                urlImportDialog.progress = total > 0 ? received / total : 0
+                urlImportDialog.progressLabel = (received / 1024).toFixed(0) + " / "
+                    + (total > 0 ? (total / 1024).toFixed(0) : "?") + " KiB"
+            }
+        }
+    }
+
+    // v0.1.0-Xanadu: BIOS-lokaal-import + gedeelde URL-dialog + BIOS-screen + slot-picker (DD-007/008/009).
+    FileDialog {
+        id: biosLocalPicker
+        title: qsTr("Selecteer een BIOS-bestand")
+        nameFilters: [
+            qsTr("BIOS / ROM (*.rom *.sys *.ic *.bin)"),
+            qsTr("Alle bestanden (*)")
+        ]
+        onAccepted: {
+            const p = selectedFile.toString().replace("file://", "")
+            bios.addFromLocal(p)
+        }
+    }
+
+    UrlImportDialog {
+        id: urlImportDialog
+        onConfirmed: function(url, name, target) {
+            urlImportDialog.busy = true
+            urlImportDialog.progress = 0
+            urlImportDialog.progressLabel = qsTr("Verbinden...")
+            if (target === "bios") bios.addFromUrl(url, name)
+            else                    cartridges.addFromUrl(url, name)
+        }
+    }
+
+    BiosManagerScreen {
+        id: biosScreen
+        parent: Overlay.overlay
+        biosModel: bios
+        onAddFromUrlClicked: { urlImportDialog.target = "bios"; urlImportDialog.open() }
+        onAddFromLocalClicked: biosLocalPicker.open()
+        onRemoveBios: function(id) { bios.removeEntry(id) }
+    }
+
+    SlotPickerDialog {
+        id: slotPicker
+        runningState: msxCore.state === MsxCore.Running
+        onSlotAChosen: {
+            if (msxCore.state === MsxCore.Running) {
+                msxCore.loadRomSlotA(slotPicker.romPath)
+                toast.show(qsTr("Slot A → ") + slotPicker.romTitle, "info")
+            } else {
+                msxCore.start(slotPicker.romPath)
+                toast.show(qsTr("Start: ") + slotPicker.romTitle, "info")
+            }
+        }
+        onSlotBChosen: {
+            msxCore.loadRomSlotB(slotPicker.romPath)
+            toast.show(qsTr("Slot B → ") + slotPicker.romTitle, "info")
+        }
     }
 
     FileDialog {
@@ -113,6 +202,14 @@ ApplicationWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: Tokens.space4
 
+                    // v0.1.0-Xanadu DD-010: hint-strip rechtsboven.
+                    Text {
+                        text: qsTr("I · BIOS    U · URL-ROM    S · Slot")
+                        color: Tokens.fgSecondary
+                        font.family: Tokens.fontFamilyMono
+                        font.pixelSize: Tokens.fontSizeLabel
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
                     Text {
                         text: qsTr("openMSX: ") +
                               (msxCore.version.length > 0 ? msxCore.version : "─")
@@ -202,6 +299,33 @@ ApplicationWindow {
                         : qsTr("(niet gevonden)")
                 }
             }
+
+            // v0.1.0-Xanadu: slot-status onderin (DD-009).
+            Row {
+                width: parent.width
+                spacing: Tokens.space4
+
+                Text {
+                    text: qsTr("Slot A: ") + (msxCore.slotARom.length > 0
+                        ? msxCore.slotARom.split("/").pop()
+                        : qsTr("(leeg)"))
+                    color: msxCore.slotARom.length > 0 ? Tokens.fgPrimary : Tokens.fgDisabled
+                    font.family: Tokens.fontFamilyMono
+                    font.pixelSize: Tokens.fontSizeLabel
+                    elide: Text.ElideMiddle
+                    width: (parent.width - Tokens.space4) / 2
+                }
+                Text {
+                    text: qsTr("Slot B: ") + (msxCore.slotBRom.length > 0
+                        ? msxCore.slotBRom.split("/").pop()
+                        : qsTr("(leeg)"))
+                    color: msxCore.slotBRom.length > 0 ? Tokens.fgPrimary : Tokens.fgDisabled
+                    font.family: Tokens.fontFamilyMono
+                    font.pixelSize: Tokens.fontSizeLabel
+                    elide: Text.ElideMiddle
+                    width: (parent.width - Tokens.space4) / 2
+                }
+            }
         }
     }
 
@@ -226,6 +350,36 @@ ApplicationWindow {
                 toast.show(qsTr("Save slot ") + slot, "info")
             }
             savesOverlay.close()
+        }
+    }
+
+    // v0.1.0-Xanadu DD-010: keyboard-shortcuts voor BIOS/URL/Slot.
+    Shortcut {
+        sequences: ["I"]
+        onActivated: biosScreen.open()
+    }
+    Shortcut {
+        sequences: ["U"]
+        onActivated: {
+            urlImportDialog.target = "rom"
+            urlImportDialog.open()
+        }
+    }
+    Shortcut {
+        sequences: ["S"]
+        onActivated: {
+            // Open slot-picker voor huidige cartridge in browser.
+            const idx = browser.currentIndex
+            const m = cartridges
+            if (idx < 0 || idx >= m.rowCount()) return
+            const isSentinel = m.data(m.index(idx, 0), Qt.UserRole + 4)
+            if (isSentinel) {
+                toast.show(qsTr("Selecteer eerst een cartridge"), "warning")
+                return
+            }
+            slotPicker.romPath  = m.data(m.index(idx, 0), Qt.UserRole + 2)
+            slotPicker.romTitle = m.data(m.index(idx, 0), Qt.UserRole + 1)
+            slotPicker.open()
         }
     }
 

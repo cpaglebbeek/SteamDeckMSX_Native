@@ -32,6 +32,9 @@ public:
     Q_PROPERTY(QString dataPath READ dataPath WRITE setDataPath NOTIFY dataPathChanged)
     Q_PROPERTY(QString currentRom READ currentRom NOTIFY currentRomChanged)
     Q_PROPERTY(QString currentMachine READ currentMachine WRITE setCurrentMachine NOTIFY currentMachineChanged)
+    // v0.1.0-Xanadu: 2 cart slots — Tcl `carta`/`cartb`. slotARom == currentRom (alias).
+    Q_PROPERTY(QString slotARom READ slotARom NOTIFY slotARomChanged)
+    Q_PROPERTY(QString slotBRom READ slotBRom NOTIFY slotBRomChanged)
 
     explicit MsxCore(QObject *parent = nullptr);
 
@@ -46,12 +49,21 @@ public:
     QString currentRom() const { return m_currentRom; }
     QString currentMachine() const { return m_currentMachine; }
     void setCurrentMachine(const QString &m);
+    // v0.1.0-Xanadu — slot accessors.
+    QString slotARom() const { return m_slotARom; }
+    QString slotBRom() const { return m_slotBRom; }
 
 public slots:
     void probeVersion();
     void start(const QString &romPath = QString());
     void stop();
+    // Compat: loadRom == loadRomSlotA (slot A is primaire).
     void loadRom(const QString &path);
+    // v0.1.0-Xanadu: 2 cart slots.
+    Q_INVOKABLE int loadRomSlotA(const QString &path);
+    Q_INVOKABLE int loadRomSlotB(const QString &path);
+    Q_INVOKABLE int removeRomSlotA();
+    Q_INVOKABLE int removeRomSlotB();
     // Returns the assigned command-id (>= 1). Reply will arrive on replyReceived(id, ...).
     int sendCommand(const QString &cmd);
     void requestMachineList();
@@ -67,6 +79,8 @@ signals:
     void dataPathChanged();
     void currentRomChanged();
     void currentMachineChanged();
+    void slotARomChanged();
+    void slotBRomChanged();
     // Generic IPC signals
     void replyReceived(int commandId, bool ok, const QString &body);
     void stateUpdate(const QString &type, const QString &name, const QString &value);
@@ -92,6 +106,8 @@ private:
     QString m_errorMessage{};
     QString m_currentRom{};
     QString m_currentMachine{};
+    QString m_slotARom{};
+    QString m_slotBRom{};
     State m_state{Idle};
 
     QProcess m_process;

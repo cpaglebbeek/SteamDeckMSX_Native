@@ -16,6 +16,11 @@ add_library(steamdeckmsx_core STATIC
     SaveStateModel.cc
     RomTypeDetector.h
     RomTypeDetector.cc
+    # v0.1.0-Xanadu
+    FileDownloader.h
+    FileDownloader.cc
+    BiosManager.h
+    BiosManager.cc
 )
 set_target_properties(steamdeckmsx_core PROPERTIES AUTOMOC ON)
 target_include_directories(steamdeckmsx_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -51,6 +56,10 @@ qt_add_qml_module(steamdeckmsx_app
         qml/MachineSelector.qml
         qml/SaveStateOverlay.qml
         qml/SaveStateCard.qml
+        # v0.1.0-Xanadu
+        qml/UrlImportDialog.qml
+        qml/SlotPickerDialog.qml
+        qml/BiosManagerScreen.qml
     RESOURCES
         assets/icons/dpad/up.svg
         assets/icons/dpad/down.svg

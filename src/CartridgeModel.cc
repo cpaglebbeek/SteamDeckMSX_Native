@@ -1,8 +1,13 @@
 #include "CartridgeModel.h"
+#include "FileDownloader.h"
+#include "RomTypeDetector.h"
 
 #include <QDateTime>
+#include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QSettings>
+#include <QStandardPaths>
 
 namespace {
 constexpr auto kSettingsKey = "recents/cartridges";
@@ -20,8 +25,143 @@ QString machineHeuristic(const QString &fileName)
 
 CartridgeModel::CartridgeModel(QObject *parent)
     : QAbstractListModel(parent)
+    , m_downloader(new FileDownloader(this))
 {
+    connect(m_downloader, &FileDownloader::finished, this, &CartridgeModel::onDownloadFinished);
+    connect(m_downloader, &FileDownloader::failed,   this, &CartridgeModel::onDownloadFailed);
+    connect(m_downloader, &FileDownloader::progress, this, &CartridgeModel::onDownloadProgress);
     load();
+}
+
+QString CartridgeModel::storageDir() const
+{
+    const QString base = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    const QString dir  = base + QStringLiteral("/roms");
+    QDir().mkpath(dir);
+    return dir;
+}
+
+QString CartridgeModel::resolveDestPath(const QString &preferredName, const QString &fallbackBasename) const
+{
+    QString name = preferredName.isEmpty() ? fallbackBasename : preferredName;
+    name = name.replace(QChar('/'), QChar('_')).replace(QChar('\\'), QChar('_'));
+    if (name.isEmpty()) name = QStringLiteral("rom.rom");
+    if (!name.endsWith(QStringLiteral(".rom"), Qt::CaseInsensitive)) {
+        name += QStringLiteral(".rom");
+    }
+    return storageDir() + QChar('/') + name;
+}
+
+bool CartridgeModel::addFromLocal(const QString &path, bool copyIntoStorage)
+{
+    if (path.isEmpty() || !QFileInfo::exists(path)) {
+        emit downloadFailed(QStringLiteral("Bron-bestand niet leesbaar: ") + path);
+        return false;
+    }
+    QFileInfo fi(path);
+    if (fi.size() > kRomMaxBytes) {
+        emit downloadFailed(QStringLiteral("ROM > %1 bytes (cap)").arg(kRomMaxBytes));
+        return false;
+    }
+    QString finalPath = path;
+    if (copyIntoStorage) {
+        const QString dest = resolveDestPath(QString(), fi.fileName());
+        if (QFile::exists(dest)) QFile::remove(dest);
+        if (!QFile::copy(path, dest)) {
+            emit downloadFailed(QStringLiteral("Kan ROM niet kopiëren naar storage: ") + dest);
+            return false;
+        }
+        finalPath = dest;
+    }
+    registerLocal(finalPath, QStringLiteral("local:") + path);
+    return true;
+}
+
+void CartridgeModel::addFromUrl(const QUrl &url, const QString &preferredName)
+{
+    if (m_busy) {
+        emit downloadFailed(QStringLiteral("CartridgeModel bezig"));
+        return;
+    }
+    QString fallback = url.fileName();
+    if (fallback.isEmpty()) fallback = QStringLiteral("rom.rom");
+    const QString dest = resolveDestPath(preferredName, fallback);
+    m_pendingDestPath = dest;
+    m_pendingSource   = QStringLiteral("url:") + url.toString();
+    setBusy(true);
+    if (!m_downloader->start(url, dest, kRomMaxBytes)) {
+        // failed-signal triggert onDownloadFailed
+    }
+}
+
+void CartridgeModel::onDownloadFinished(const QString &destPath, const QString &sha1Hex)
+{
+    Q_UNUSED(sha1Hex);
+    registerLocal(destPath, m_pendingSource);
+    setBusy(false);
+    QFileInfo fi(destPath);
+    emit downloadFinished(fi.completeBaseName(), destPath);
+}
+
+void CartridgeModel::onDownloadFailed(const QString &reason)
+{
+    if (!m_pendingDestPath.isEmpty()) {
+        QFile::remove(m_pendingDestPath + QStringLiteral(".part"));
+        QFile::remove(m_pendingDestPath);
+    }
+    setBusy(false);
+    emit downloadFailed(reason);
+}
+
+void CartridgeModel::onDownloadProgress(qint64 received, qint64 total)
+{
+    emit downloadProgress(received, total);
+}
+
+void CartridgeModel::registerLocal(const QString &absPath, const QString &source)
+{
+    QFileInfo fi(absPath);
+    // SHA-1 fingerprint (best-effort; skip bij failure).
+    QString sha;
+    {
+        QFile f(absPath);
+        if (f.open(QIODevice::ReadOnly)) {
+            // Cap read tot 8 MiB.
+            sha = RomTypeDetector::sha1Hex(f.read(kRomMaxBytes));
+        }
+    }
+    beginResetModel();
+    m_entries.removeIf([&](const CartridgeEntry &e) { return e.romPath == absPath; });
+    CartridgeEntry e;
+    e.romPath      = fi.absoluteFilePath();
+    e.title        = fi.completeBaseName();
+    e.machine      = machineHeuristic(fi.fileName());
+    e.lastUsedUnix = QDateTime::currentSecsSinceEpoch();
+    e.sha1Hex      = sha;
+    e.source       = source;
+    int sentinelIdx = -1;
+    for (int i = 0; i < m_entries.size(); ++i) {
+        if (m_entries[i].romPath.isEmpty()) { sentinelIdx = i; break; }
+    }
+    if (sentinelIdx < 0) m_entries.prepend(e);
+    else                 m_entries.insert(sentinelIdx, e);
+    int recents = 0;
+    for (auto it = m_entries.begin(); it != m_entries.end();) {
+        if (!it->romPath.isEmpty()) {
+            if (++recents > kMaxRecents) { it = m_entries.erase(it); continue; }
+        }
+        ++it;
+    }
+    endResetModel();
+    persist();
+    emit recentsChanged();
+}
+
+void CartridgeModel::setBusy(bool b)
+{
+    if (m_busy == b) return;
+    m_busy = b;
+    emit busyChanged();
 }
 
 void CartridgeModel::load()
@@ -38,6 +178,8 @@ void CartridgeModel::load()
         e.title        = s.value(QStringLiteral("title")).toString();
         e.machine      = s.value(QStringLiteral("machine")).toString();
         e.lastUsedUnix = s.value(QStringLiteral("lastUsed"), 0).toLongLong();
+        e.sha1Hex      = s.value(QStringLiteral("sha1")).toString();      // v0.1.0
+        e.source       = s.value(QStringLiteral("source")).toString();    // v0.1.0
         if (!e.romPath.isEmpty() && QFileInfo::exists(e.romPath)) {
             m_entries.push_back(e);
         }
@@ -65,6 +207,8 @@ void CartridgeModel::persist()
         s.setValue(QStringLiteral("title"),    e.title);
         s.setValue(QStringLiteral("machine"),  e.machine);
         s.setValue(QStringLiteral("lastUsed"), e.lastUsedUnix);
+        s.setValue(QStringLiteral("sha1"),     e.sha1Hex);     // v0.1.0
+        s.setValue(QStringLiteral("source"),   e.source);      // v0.1.0
     }
     s.endArray();
     s.sync();
@@ -72,47 +216,9 @@ void CartridgeModel::persist()
 
 void CartridgeModel::addRom(const QString &path)
 {
-    if (path.isEmpty() || !QFileInfo::exists(path)) return;
-
-    beginResetModel();
-
-    // Remove existing entry with same path
-    m_entries.removeIf([&](const CartridgeEntry &e) { return e.romPath == path; });
-
-    // Build new entry
-    QFileInfo fi(path);
-    CartridgeEntry e;
-    e.romPath      = fi.absoluteFilePath();
-    e.title        = fi.completeBaseName();
-    e.machine      = machineHeuristic(fi.fileName());
-    e.lastUsedUnix = QDateTime::currentSecsSinceEpoch();
-
-    // Find sentinel index and insert before it
-    int sentinelIdx = -1;
-    for (int i = 0; i < m_entries.size(); ++i) {
-        if (m_entries[i].romPath.isEmpty()) { sentinelIdx = i; break; }
-    }
-    if (sentinelIdx < 0) {
-        m_entries.prepend(e);
-    } else {
-        m_entries.insert(sentinelIdx, e);
-    }
-
-    // Cap recents
-    int recentsCount = 0;
-    for (auto it = m_entries.begin(); it != m_entries.end();) {
-        if (!it->romPath.isEmpty()) {
-            if (++recentsCount > kMaxRecents) {
-                it = m_entries.erase(it);
-                continue;
-            }
-        }
-        ++it;
-    }
-
-    endResetModel();
-    persist();
-    emit recentsChanged();
+    // v0.0.x compat: alias voor addFromLocal zonder kopiëren naar storage.
+    // Behoud bestaande gedrag voor SAF-picker via AddRomCard.
+    addFromLocal(path, /*copyIntoStorage=*/false);
 }
 
 void CartridgeModel::clearRecents()
@@ -142,6 +248,8 @@ QVariant CartridgeModel::data(const QModelIndex &index, int role) const
         case MachineRole:    return e.machine;
         case IsSentinelRole: return e.romPath.isEmpty();
         case LastUsedRole:   return e.lastUsedUnix;
+        case Sha1Role:       return e.sha1Hex;       // v0.1.0
+        case SourceRole:     return e.source;        // v0.1.0
         default:             return {};
     }
 }
@@ -154,5 +262,7 @@ QHash<int, QByteArray> CartridgeModel::roleNames() const
         {MachineRole,    "machine"},
         {IsSentinelRole, "isSentinel"},
         {LastUsedRole,   "lastUsed"},
+        {Sha1Role,       "sha1Hex"},      // v0.1.0
+        {SourceRole,     "source"},       // v0.1.0
     };
 }

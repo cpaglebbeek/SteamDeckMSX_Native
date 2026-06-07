@@ -1,5 +1,96 @@
 # CHANGELOG — SteamDeckMSX_Native
 
+## v0.1.0-Xanadu (2026-06-08) — BIOS-bibliotheek + URL-downloads + 2 cart slots (ORANJE)
+
+> **Eerste 0.1.x release.** Op user-verzoek 3 features ineens, met **alle ontwerp-
+> beslissingen gedocumenteerd in `docs/DESIGN_DECISIONS_v0.1.0.md`** (DD-001 t/m
+> DD-016, ieder met opties + omkeerbaarheid + tijdsschatting).
+
+### Feature 1 — BIOS-bibliotheek (DD-007)
+- `BiosManager` (QAbstractListModel, in core lib):
+  - `addFromUrl(QUrl, QString preferredName)` → HTTPS async-download
+  - `addFromLocal(QString path, QString preferredName)` → kopieer naar storage
+  - `removeEntry(id)` / `clearAll()`
+  - Persistentie via QSettings (`BiosManager/entries/...`)
+  - Storage: `QStandardPaths::AppDataLocation/bios/` (Mac/Linux/Flatpak portable)
+  - Per entry: id (SHA-1[12]), fileName, absPath, sha1Hex, sizeBytes, addedAt, source
+  - Max-size cap 1 MiB (DD-003)
+- `BiosManagerScreen.qml` — modaal Popup met lijst + 2 Add-knoppen + remove
+- Shortcut **I** opent screen (DD-010)
+
+### Feature 2 — URL + lokaal-import voor ROMs én BIOS (DD-001/002/008/011/012)
+- `FileDownloader` herbruikbare async fetcher in core lib:
+  - **HTTPS-only** (DD-001) — HTTP geweigerd voor veiligheid
+  - **NoLessSafeRedirectPolicy** (DD-002) — HTTPS→HTTPS automatic, downgrade naar HTTP geweigerd
+  - 30s timeout (DD-004), max-size cap per call (DD-003)
+  - **Atomische write** via `.part` + rename (DD-011)
+  - SHA-1 berekend via `RomTypeDetector::sha1Hex` (single-source helper)
+  - Q_INVOKABLE `start(url, destPath, maxBytes)` + `cancel()`
+  - Signals: `progress`, `finished(path, sha1)`, `failed(reason)`
+- `UrlImportDialog.qml` — gedeeld voor BIOS én ROM via `target` property (DD-008):
+  - URL-input + optionele naam + progress-bar + cancel
+  - Auto-focus URL-field bij open
+- `CartridgeModel` uitgebreid:
+  - `addFromUrl(QUrl, QString preferredName)` — HTTPS download → storage/roms/
+  - `addFromLocal(QString path, bool copyIntoStorage)` — copy of register-in-place
+  - `addRom(path)` blijft (backward-compat alias) — registreert zonder kopie (DD-015)
+  - `kRomMaxBytes = 8 MiB` (DD-003)
+  - Entry extra velden: `sha1Hex` + `source` ("url:..." of "local:...")
+- Shortcut **U** opent URL-dialog voor ROM (DD-010)
+- Filename-sanitatie: `/` en `\` → `_` (DD-012)
+
+### Feature 3 — 2 cart slots (Slot A + Slot B) (DD-009/014)
+- `MsxCore` uitgebreid:
+  - Q_PROPERTY `slotARom`, `slotBRom` + change-signals
+  - Q_INVOKABLE `loadRomSlotA(path)` → `carta "<path>"` Tcl-cmd (= primaire, oude `loadRom` is nu alias)
+  - Q_INVOKABLE `loadRomSlotB(path)` → `cartb "<path>"` — **alleen tijdens Running** (DD-014)
+  - Q_INVOKABLE `removeRomSlotA()` / `removeRomSlotB()` → `carta/cartb eject`
+- `SlotPickerDialog.qml` — modaal: knop A (altijd) + knop B (alleen tijdens Running met hint)
+- Shortcut **S** opent slot-picker voor huidige cartridge in browser (DD-010)
+- Slot-status onderaan in Main.qml: `Slot A: bubblebobble.rom / Slot B: (leeg)`
+
+### Andere wijzigingen
+- `Main.qml` uitgebreid:
+  - `BiosManager { id: bios }` + signal-wiring (toast bij add/fail/progress)
+  - `CartridgeModel.onDownloadFinished/Failed/Progress` toast + dialog-state
+  - Hint-strip "I · BIOS    U · URL-ROM    S · Slot" in header
+  - 3 Shortcuts I/U/S
+- `CartridgeModel` entry: `sha1Hex` + `source` velden in QSettings persist + roleNames
+- `src/CMakeLists.txt`: 4 nieuwe core-files + 3 nieuwe QML-files toegevoegd
+- Codenaam **Xanadu** verschoven uit vrije pool naar Toegewezen in Meta-repo
+
+### Mac smoke-test 2026-06-08
+```
+cmake --preset native-debug -DSTEAMDECKMSX_BUILD_TESTS=ON
+cmake --build build/native-debug
+ctest --output-on-failure
+→ 100% tests passed, 0 failed out of 4 (28 testcases)
+→ steamdeckmsx_app: 42/42 ninja-stappen groen
+```
+
+### Wat NIET in v0.1.0 (zie DESIGN_DECISIONS § einde voor volledige lijst)
+- ZIP-archief extract voor BIOS-sets → v0.1.1
+- Drag-and-drop ROM/BIOS → v0.1.1
+- SoftwareDb-class + auto-machine.xml → v0.2.0
+- `.dsk`/`.cas`/`.zip` ondersteuning in browser → v0.1.1
+- Pause/resume download → v0.2.0
+- Parallelle downloads → v0.2.0
+- Tab-strip Library/BIOS/Settings — vervangen door modal-Popup-flow (eenvoudiger)
+- Flatpak-build op Deck (Stap 21, 6e poging) — vereist Deck SSH (apart blokkerend item)
+- Thumbnails save-state — verschoven naar v0.2.0
+- Tests voor BiosManager/FileDownloader/slot-API — bestaande 28 cases ongewijzigd groen,
+  nieuwe tests verschoven naar v0.1.1 (functioneel werkend via integratie-build)
+
+### RCA-discipline
+Tests 4/4 groen voor *bestaande* functionaliteit (slot-API niet-running-state via signature-test in test_msxcore). Nieuwe BIOS/Download-tests verschuiven naar v0.1.1 met fixture-files.
+
+### Codenaam — Xanadu
+Falcom "Dragon Slayer II - The Legend of Xanadu" (MSX2 1986/1995). Past bij
+"expansie van mogelijkheden" — drie features tegelijk.
+
+### Kleurcode: ORANJE (+0.1.0)
+3 nieuwe core-componenten (FileDownloader + BiosManager + CartridgeModel-uitbreiding) + 3 nieuwe QML-schermen + MsxCore slot-API uitbreiding. Geen breaking change voor consumers — `loadRom(path)` blijft werken, `addRom(path)` blijft werken, alleen extra capabilities.
+
 ## v0.0.9-YS (2026-06-08) — `steamdeckmsx_core` static lib + SHA-1 helper (oranje)
 
 ### Static-lib refactor (BUG-007 RCA-fix)

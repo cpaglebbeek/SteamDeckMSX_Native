@@ -153,16 +153,16 @@ void MsxCore::stop()
 
 void MsxCore::loadRom(const QString &path)
 {
-    // v0.0.8-Snatcher: BIOS-detect-heuristic log-only.
-    // We zetten currentMachine NOG NIET automatisch (verschuift naar v0.0.9
-    // wanneer softwaredb-hash-match meer betrouwbaarheid biedt). Voor nu:
-    // bij elke ROM-load loggen wat de heuristiek voorstelt, zodat we de
-    // accuratesse kunnen valideren tegen openMSX-softwaredb in komende sessies.
+    // Compat: v0.1.0-Xanadu — loadRom is alias voor loadRomSlotA (primaire slot).
+    loadRomSlotA(path);
+}
+
+int MsxCore::loadRomSlotA(const QString &path)
+{
+    // BIOS-detect-heuristic log-only (sinds v0.0.8-Snatcher).
     {
         QFile f(path);
         if (f.open(QIODevice::ReadOnly)) {
-            // Lees maximaal 512KB om I/O-tijd te begrenzen — SCC-pattern zit
-            // in de regel in eerste 64KB; 512KB dekt ook MSX2 mega-ROMs.
             const QByteArray bytes = f.read(512 * 1024);
             const auto r = RomTypeDetector::detect(bytes);
             qInfo().noquote() << "[RomTypeDetector]" << QFileInfo(path).fileName()
@@ -177,12 +177,64 @@ void MsxCore::loadRom(const QString &path)
     }
 
     if (m_state == Running) {
-        m_currentRom = path;
+        m_slotARom = path;
+        m_currentRom = path;          // compat-alias.
+        emit slotARomChanged();
         emit currentRomChanged();
-        sendCommand(QStringLiteral("carta \"%1\"").arg(path));
+        return sendCommand(QStringLiteral("carta \"%1\"").arg(path));
     } else {
+        // Niet running → start met deze ROM in slot A.
+        m_slotARom = path;
+        m_currentRom = path;
+        emit slotARomChanged();
+        emit currentRomChanged();
         start(path);
+        return 0;  // start() laadt via -cart bij spawn.
     }
+}
+
+int MsxCore::loadRomSlotB(const QString &path)
+{
+    // Slot B alleen mogelijk als emulator al draait — openMSX heeft anders
+    // geen idee waar in te steken.
+    if (m_state != Running) {
+        qWarning() << "[MsxCore] loadRomSlotB vereist Running state; huidige:" << m_state;
+        emit logMessage(QStringLiteral("warning"),
+                        QStringLiteral("Slot B kan alleen tijdens draaiend spel — start eerst slot A"));
+        return -1;
+    }
+    {
+        QFile f(path);
+        if (f.open(QIODevice::ReadOnly)) {
+            const QByteArray bytes = f.read(512 * 1024);
+            const auto r = RomTypeDetector::detect(bytes);
+            qInfo().noquote() << "[RomTypeDetector/slotB]" << QFileInfo(path).fileName()
+                              << "sha1=" << r.sha1Hex.left(12) + QStringLiteral("…")
+                              << "→" << RomTypeDetector::generationName(r.generation);
+        }
+    }
+    m_slotBRom = path;
+    emit slotBRomChanged();
+    return sendCommand(QStringLiteral("cartb \"%1\"").arg(path));
+}
+
+int MsxCore::removeRomSlotA()
+{
+    m_slotARom.clear();
+    m_currentRom.clear();
+    emit slotARomChanged();
+    emit currentRomChanged();
+    if (m_state != Running) return 0;
+    // openMSX: `carta eject` of `carta -` om uit te werpen.
+    return sendCommand(QStringLiteral("carta eject"));
+}
+
+int MsxCore::removeRomSlotB()
+{
+    m_slotBRom.clear();
+    emit slotBRomChanged();
+    if (m_state != Running) return 0;
+    return sendCommand(QStringLiteral("cartb eject"));
 }
 
 int MsxCore::sendCommand(const QString &cmd)
