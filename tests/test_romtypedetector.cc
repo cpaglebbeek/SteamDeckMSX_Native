@@ -110,6 +110,52 @@ int main(int argc, char *argv[])
         EXPECT(RomTypeDetector::mapperName(Map::Unknown) == QStringLiteral("Unknown"));
     }
 
-    qInfo() << "test_romtypedetector: 8/8 cases PASS";
+    // ----- T9: SHA-1 helper deterministisch + lege string voor lege input -----
+    // v0.0.9-YS: opbouw naar softwaredb-hash-match (v0.0.10+).
+    {
+        // Lege input → lege string (geen SHA1 van niets).
+        EXPECT(RomTypeDetector::sha1Hex(QByteArray()).isEmpty());
+
+        // Bekend SHA-1: "abc" → "a9993e364706816aba3e25717850c26c9cd0d89d"
+        const QByteArray abc("abc");
+        const QString sha = RomTypeDetector::sha1Hex(abc);
+        EXPECT(sha.length() == 40);
+        EXPECT(sha == QStringLiteral("a9993e364706816aba3e25717850c26c9cd0d89d"));
+
+        // SHA-1 van lege QByteArray van 1 byte (#0x00) ≠ leeg.
+        const QByteArray oneZero(1, char(0x00));
+        const QString shaZero = RomTypeDetector::sha1Hex(oneZero);
+        EXPECT(shaZero.length() == 40);
+        EXPECT(shaZero != sha);
+
+        // Bekend SHA-1: 64 nulbytes → fixed hash (deterministisch).
+        const QByteArray sixtyFourZeros(64, char(0x00));
+        const QString sha64 = RomTypeDetector::sha1Hex(sixtyFourZeros);
+        EXPECT(sha64.length() == 40);
+        EXPECT(sha64 == QStringLiteral("c8d7d0ef0eedfa82d2ea1aa592845b9a6d4b02b7"));
+    }
+
+    // ----- T10: Result.sha1Hex wordt ingevuld in detect() -----
+    {
+        QByteArray rom(8 * 1024, char(0x42));
+        const auto r = RomTypeDetector::detect(rom);
+        EXPECT(!r.sha1Hex.isEmpty());
+        EXPECT(r.sha1Hex.length() == 40);
+        // Determinisme: zelfde input → zelfde sha1.
+        const auto r2 = RomTypeDetector::detect(rom);
+        EXPECT(r.sha1Hex == r2.sha1Hex);
+        // Verschillende input → andere sha1.
+        QByteArray rom2(8 * 1024, char(0x43));
+        const auto r3 = RomTypeDetector::detect(rom2);
+        EXPECT(r3.sha1Hex != r.sha1Hex);
+    }
+
+    // ----- T11: lege ROM → r.sha1Hex leeg (detect-pad) -----
+    {
+        const auto r = RomTypeDetector::detect(QByteArray());
+        EXPECT(r.sha1Hex.isEmpty());
+    }
+
+    qInfo() << "test_romtypedetector: 11/11 cases PASS";
     return 0;
 }

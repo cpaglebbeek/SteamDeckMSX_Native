@@ -1,5 +1,68 @@
 # CHANGELOG — SteamDeckMSX_Native
 
+## v0.0.9-YS (2026-06-08) — `steamdeckmsx_core` static lib + SHA-1 helper (oranje)
+
+### Static-lib refactor (BUG-007 RCA-fix)
+- `src/CMakeLists.txt`: alle non-UI logica verzameld in `add_library(steamdeckmsx_core STATIC ...)`.
+  - Bevat: `MsxCore`, `CartridgeModel`, `OpenmsxLocator`, `MachineModel`,
+    `SaveStateModel`, `RomTypeDetector` (allebei `.h` + `.cc`).
+  - `target_link_libraries(steamdeckmsx_core PUBLIC Qt6::Core Qt6::Qml Qt6::Network)`.
+  - `target_include_directories(steamdeckmsx_core PUBLIC src/)`.
+  - AUTOMOC aan op lib-target.
+- `steamdeckmsx_app` linkt nu `steamdeckmsx_core` + alleen UI-Qt-modules
+  (`Gui`, `Quick`, `QuickDialogs2`, `Svg`).
+- `tests/CMakeLists.txt` herschreven: alle 3 testbinaries linken `steamdeckmsx_core` + `Qt6::Test`.
+  Geen directe `.cc`-paden meer in test-targets.
+- **Effect**: nieuwe core-files landen automatisch in app + alle tests → BUG-007
+  herhaling onmogelijk gemaakt.
+
+### SHA-1 fingerprint helper — opbouw naar softwaredb-hash-match (v0.0.10+)
+- `RomTypeDetector::sha1Hex(QByteArray)` static helper — gebruikt
+  `QCryptographicHash::Sha1`. Lege input → lege string. Output = lowercase 40-char hex.
+- `Result.sha1Hex` veld toegevoegd, ingevuld in `detect()`. Zal in v0.0.10
+  als lookup-key dienen voor `SoftwareDb` (openMSX `softwaredb.xml`-parse).
+- `MsxCore::loadRom()` log uitgebreid met eerste 12 chars van SHA-1 als prefix-fingerprint
+  ("`[RomTypeDetector] bubblebobble.rom sha1=a9993e364706… → MSX1/Plain → suggest C-BIOS_MSX1`").
+
+### Tests — 8 → 11 RomTypeDetector cases (25 → 28 totaal)
+- **T9** (nieuw): SHA-1 helper deterministisch + lege input → leeg
+  + bekende waarden:
+  - `sha1Hex("abc") == "a9993e364706816aba3e25717850c26c9cd0d89d"` (RFC-3174 referentie)
+  - `sha1Hex(0x00×64) == "c8d7d0ef0eedfa82d2ea1aa592845b9a6d4b02b7"` (openssl-bevestigd)
+- **T10** (nieuw): `Result.sha1Hex` ingevuld door `detect()`, deterministisch,
+  verschillende input → verschillende sha.
+- **T11** (nieuw): lege ROM-pad → `Result.sha1Hex` leeg.
+
+### CMakeLists root — codenaam + versie expliciet (BUG-008 voorkomen)
+- `project(VERSION 0.0.9)` (was 0.0.8 via vorige hotfix)
+- `set(STEAMDECKMSX_VERSION_CODENAME "YS" CACHE …)` (was Snatcher)
+
+### Mac smoke-test 2026-06-08
+```
+cmake --preset native-debug -DSTEAMDECKMSX_BUILD_TESTS=ON -DSTEAMDECKMSX_VERSION_CODENAME=YS
+cmake --build build/native-debug
+ctest --output-on-failure
+→ 100% tests passed, 0 tests failed out of 4 (28 testcases)
+→ build-output: SteamDeckMSX v0.0.8-YS (vóór VERSION/project bump)
+```
+
+### Wat NIET in v0.0.9
+- Echte `SoftwareDb`-class met XML-parse — verschuift naar v0.0.10
+- Ascii8/16-mapper-detect — verschuift naar v0.0.10
+- Auto-`setCurrentMachine` — wacht op SoftwareDb + accuratesse-validatie
+- Flatpak-build op Deck — Deck SSH nog open
+- Thumbnails save-state — v0.0.10+
+- Tab-strip in CartridgeBrowser — vereist Main.qml-restructuur
+
+### Codenaam — YS
+Falcom/MSX2 RPG-port 1988 ("Ys: Vanished Omens"). Past bij static-lib refactor
+"opruimen + structuur leggen voor groter epic".
+
+### Kleurcode: ORANJE (+0.1.0)
+Architectuur-refactor (static-lib) + nieuwe component-API (`sha1Hex` + `Result.sha1Hex`)
++ test-uitbreiding. Geen breaking change voor consumers — `Result` is uitgebreid,
+niet veranderd; `detect()`-signatuur ongewijzigd.
+
 ## v0.0.8-Snatcher (2026-06-07) — RomTypeDetector + L1/R1 page-jump (oranje)
 
 ### v0.0.8.1 hotfix (2026-06-07 — zelfde dag) — Mac smoke-test groen

@@ -166,6 +166,7 @@ void MsxCore::loadRom(const QString &path)
             const QByteArray bytes = f.read(512 * 1024);
             const auto r = RomTypeDetector::detect(bytes);
             qInfo().noquote() << "[RomTypeDetector]" << QFileInfo(path).fileName()
+                              << "sha1=" << r.sha1Hex.left(12) + QStringLiteral("…")
                               << "→" << RomTypeDetector::generationName(r.generation)
                               << "/" << RomTypeDetector::mapperName(r.mapper)
                               << "→ suggest" << r.suggestedMachine

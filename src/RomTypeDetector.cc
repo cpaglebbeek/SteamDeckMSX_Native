@@ -1,5 +1,7 @@
 #include "RomTypeDetector.h"
 
+#include <QCryptographicHash>
+
 RomTypeDetector::Generation RomTypeDetector::detectGeneration(const QByteArray &rom)
 {
     const auto size = rom.size();
@@ -33,11 +35,20 @@ RomTypeDetector::Mapper RomTypeDetector::detectMapper(const QByteArray &rom)
     return Mapper::Konami;
 }
 
+QString RomTypeDetector::sha1Hex(const QByteArray &rom)
+{
+    if (rom.isEmpty()) return QString();
+    return QString::fromLatin1(
+        QCryptographicHash::hash(rom, QCryptographicHash::Sha1).toHex()
+    );
+}
+
 RomTypeDetector::Result RomTypeDetector::detect(const QByteArray &rom)
 {
     Result r;
     r.generation = detectGeneration(rom);
     r.mapper     = detectMapper(rom);
+    r.sha1Hex    = sha1Hex(rom);
 
     switch (r.generation) {
     case Generation::MSX1:

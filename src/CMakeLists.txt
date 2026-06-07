@@ -1,5 +1,9 @@
-qt_add_executable(steamdeckmsx_app
-    main.cc
+# v0.0.9-YS: extract core (alle non-UI logica) naar static lib.
+# RCA van BUG-007 (v0.0.8): tests linkten direct naar individuele .cc-files
+# i.p.v. via 1 library-target → transitive dep RomTypeDetector raakte verloren.
+# Static lib voorkomt herhaling: tests + app linken `steamdeckmsx_core`,
+# nieuwe core-bestanden landen automatisch in beide.
+add_library(steamdeckmsx_core STATIC
     MsxCore.h
     MsxCore.cc
     CartridgeModel.h
@@ -13,6 +17,18 @@ qt_add_executable(steamdeckmsx_app
     RomTypeDetector.h
     RomTypeDetector.cc
 )
+set_target_properties(steamdeckmsx_core PROPERTIES AUTOMOC ON)
+target_include_directories(steamdeckmsx_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(steamdeckmsx_core PUBLIC
+    Qt6::Core
+    Qt6::Qml
+    Qt6::Network
+)
+
+qt_add_executable(steamdeckmsx_app
+    main.cc
+)
+target_link_libraries(steamdeckmsx_app PRIVATE steamdeckmsx_core)
 
 set_source_files_properties(qml/Tokens.qml PROPERTIES
     QT_QML_SINGLETON_TYPE TRUE
@@ -51,13 +67,11 @@ qt_add_qml_module(steamdeckmsx_app
 )
 
 target_link_libraries(steamdeckmsx_app PRIVATE
-    Qt6::Core
+    # Core/Qml/Network al via steamdeckmsx_core (PUBLIC).
     Qt6::Gui
-    Qt6::Qml
     Qt6::Quick
     Qt6::QuickDialogs2
     Qt6::Svg
-    Qt6::Network
 )
 
 target_compile_definitions(steamdeckmsx_app PRIVATE

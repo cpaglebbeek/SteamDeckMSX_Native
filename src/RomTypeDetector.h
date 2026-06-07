@@ -34,6 +34,7 @@ public:
         Mapper mapper = Mapper::Unknown;
         QString suggestedMachine;  // bv. "C-BIOS_MSX1" / "C-BIOS_MSX2" / "C-BIOS_MSX2+"
         QString reason;            // mens-leesbaar voor toast/log
+        QString sha1Hex;           // SHA-1 hex (lowercase 40 chars) — toekomstige softwaredb lookup-key (v0.0.9+)
     };
 
     // Hoofd-API: analyseer ROM-bytes en return Result.
@@ -50,6 +51,10 @@ public:
     // = "3E 9F 32 B0 80" anywhere in ROM. False-positive mogelijk maar
     // 95%+ accuraat voor commercieel SCC-titels.
     static bool hasScc(const QByteArray &romBytes);
+
+    // SHA-1 hex-string van ROM-bytes (lowercase 40 chars). Voor softwaredb-lookup
+    // (v0.0.10+) en als fingerprint in `Result.sha1Hex`. Lege input → lege string.
+    static QString sha1Hex(const QByteArray &romBytes);
 
     // String-helpers voor logging.
     static QString generationName(Generation g);
