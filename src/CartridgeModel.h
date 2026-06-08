@@ -29,8 +29,12 @@ public:
         IsSentinelRole,
         LastUsedRole,
         Sha1Role,           // v0.1.0
-        SourceRole          // v0.1.0
+        SourceRole,         // v0.1.0
+        MediaTypeRole       // v0.2.0: "rom" / "dsk" / "cas" — bepaalt openMSX Tcl-cmd-route
     };
+
+    // v0.2.0: detecteer media-type per file-extensie.
+    static QString mediaTypeFor(const QString &path);
 
     // ROM-cap: 8 MiB (MSX2 mega-ROM max ~4MB, ruime marge).
     static constexpr qint64 kRomMaxBytes = 8 * 1024 * 1024;

@@ -64,6 +64,12 @@ public slots:
     Q_INVOKABLE int loadRomSlotB(const QString &path);
     Q_INVOKABLE int removeRomSlotA();
     Q_INVOKABLE int removeRomSlotB();
+    // v0.2.0-TreasureOfUsas: disk + tape media.
+    // diska/diskb voor floppy (.dsk), casa voor cassette-tape (.cas).
+    Q_INVOKABLE int loadDsk(const QString &path, int drive = 0);  // 0=A, 1=B
+    Q_INVOKABLE int loadCas(const QString &path);
+    Q_INVOKABLE int ejectDsk(int drive = 0);
+    Q_INVOKABLE int ejectCas();
     // Returns the assigned command-id (>= 1). Reply will arrive on replyReceived(id, ...).
     int sendCommand(const QString &cmd);
     void requestMachineList();

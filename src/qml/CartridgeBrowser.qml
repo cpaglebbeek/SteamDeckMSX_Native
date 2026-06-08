@@ -5,10 +5,36 @@ import SteamDeckMSX
 ListView {
     id: list
     signal activated(int index, var entry)
+    // v0.2.0-TreasureOfUsas: drag-and-drop. Caller koppelt aan model.addFromLocal.
+    signal filesDropped(var urls)
 
     clip: true
     spacing: Tokens.space2
     boundsBehavior: Flickable.StopAtBounds
+
+    // v0.2.0: DropArea bovenop lijst. Accepteert ROMs, disks, tapes, ZIPs.
+    DropArea {
+        anchors.fill: parent
+        keys: ["text/uri-list"]
+        onDropped: function(drop) {
+            const urls = []
+            for (let i = 0; i < drop.urls.length; ++i) urls.push(drop.urls[i])
+            if (urls.length > 0) {
+                list.filesDropped(urls)
+                drop.accept()
+            }
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            color: Tokens.accentInfo
+            opacity: parent.containsDrag ? 0.15 : 0
+            border.color: Tokens.accentInfo
+            border.width: parent.containsDrag ? Tokens.focusRingWidth : 0
+            radius: 8
+            Behavior on opacity { NumberAnimation { duration: Tokens.motionFast } }
+        }
+    }
 
     keyNavigationEnabled: true
     keyNavigationWraps: false

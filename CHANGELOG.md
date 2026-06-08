@@ -1,5 +1,98 @@
 # CHANGELOG — SteamDeckMSX_Native
 
+## v0.2.0-TreasureOfUsas (2026-06-08) — SoftwareDb + ZIP-extract + DSK/CAS + thumbnails + Ascii8/16 + drag-and-drop (ORANJE)
+
+> **Tweede 0.x release.** User-verzoek: "ga verder met bouwen. gebruik zoveel
+> agents als nodig voor het verdelen van load en context. ga er vanuit dat alles
+> gaat werken en vergeet tussentijds testen". 4 agents parallel + ik orchestratie.
+
+### Feature 1 — `SoftwareDb` class (openMSX softwaredb-hash lookup)
+- `src/SoftwareDb.{h,cc}` — QObject met QML_ELEMENT
+- `Q_INVOKABLE loadFromXmlFile(QString)` — stream-based `QXmlStreamReader` (geen DOM voor 10MB+ files)
+- `Q_INVOKABLE addEntry(sha1, machine, title)` — in-memory bootstrap voor tests
+- `Q_INVOKABLE lookupMachine(sha1) → QString` / `lookupTitle(sha1) → QString` (case-insensitive)
+- `Q_INVOKABLE loadBootstrapData()` — 5 sample-entries als smoke-test
+- XML-parse: één `<software>`-blok = N entries (meerdere dump-varianten/regio's per game), `algo="sha1"` only, system → machine mapping (MSX/MSX2/MSX2+ → C-BIOS_MSX*)
+- `tests/test_softwaredb.cc` — addEntry roundtrip, case-insensitive lookup, bootstrap-load, XML-fixture parse, clearAll
+
+### Feature 2 — `BiosZipExtractor` (ZIP-archief BIOS-sets)
+- `src/BiosZipExtractor.{h,cc}` — gebruikt `<QtGui/private/qzipreader_p.h>` (private API, ABI stabiel sinds Qt5)
+- `Q_INVOKABLE extractTo(zipPath, destDir, fileNamesOut) → int` (aantal succes)
+- Accept-extensies: `.rom`, `.sys`, `.bin` (case-insensitive)
+- Per-file cap 1 MiB + hard cap 64 files/zip (anti-zip-bomb)
+- Path-traversal-veiligheid: `..`-segmenten, absolute paden, drive-letters geweigerd
+- Atomic write via `.part` + rename (consistent met FileDownloader)
+- Dedupe binnen ZIP: `_2`, `_3` suffix bij dubbele basenname
+- Symlinks/non-files via `isFile`-check geweigerd
+- Signals: `fileExtracted`, `skipped(name, reason)`, `parseError`
+- `CMakeLists.txt`: `Qt6::GuiPrivate` PUBLIC-linked op core lib
+
+### Feature 3 — DSK + CAS media support in `MsxCore`
+- `Q_INVOKABLE loadDsk(QString path, int drive)` → Tcl `diska "<path>"` of `diskb "<path>"`
+- `Q_INVOKABLE loadCas(QString path)` → Tcl `cassetteplayer insert "<path>"`
+- `Q_INVOKABLE ejectDsk(int drive)` / `ejectCas()` → `eject`
+- Beide vereisen `Running`-state (anders warning + return -1)
+- `CartridgeModel::mediaTypeFor(path)` static helper: extensie → "rom"/"dsk"/"cas"/"zip"
+- `CartridgeModel` nieuwe `MediaTypeRole` in roleNames → QML kan `mediaType`-binding gebruiken
+- `Main.qml` `CartridgeBrowser.onActivated` + `romPicker.onAccepted` routen per extensie:
+  - `.dsk` → `start("")` (C-BIOS boot) als niet-running, dan `loadDsk(path, 0)`
+  - `.cas` → idem met `loadCas`
+  - `.rom` → bestaande `start(path)` blijft
+
+### Feature 4 — Save-state thumbnails
+- `SaveStateModel` nieuwe `ThumbnailPathRole` + `thumbnailPath`-veld per slot
+- `Q_INVOKABLE requestThumbnail(int slot)` → openMSX `screenshot -prefix <dir>/slot_N` Tcl-cmd
+- `Q_INVOKABLE thumbnailFor(int slot)` → absoluut pad (lege string als file niet bestaat)
+- Storage: `QStandardPaths::AppDataLocation/savestates/thumbs/slot_N.png`
+- QSettings persist uitgebreid met `thumbnail`-veld per slot
+- `SaveStateCard.qml`: `thumbnailPath`-property + `Image`-laag (opacity 0.35, PreserveAspectCrop, cache:false)
+- `SaveStateOverlay.qml` delegate-binding `thumbnailPath: model.thumbnailPath || ""`
+- **Bekende beperking**: async timing-race tussen screenshot-write en QImage-load (geen reload-trigger v0.2.0 — herstart overlay vernieuwt; v0.2.1 plant `commandFinished`-signal vanuit core)
+
+### Feature 5 — Ascii8 + Ascii16 mapper-detect in `RomTypeDetector`
+- `static bool hasAscii8(rom)` — bank-switch write naar 0x6800/0x7000/0x7800 (≥2 van 3 hits)
+- `static bool hasAscii16(rom)` — bank-switch write naar 0x6000 EN 0x7000
+- `detectMapper`-prioriteit: SCC > ASCII16 > ASCII8 > Konami-default (ASCII16 voorrang voorkomt false-positive)
+- `detect()` MSX2-reason gebruikt nu `mapperName(mapper)` — uniforme readout
+- `tests/test_romtypedetector.cc`: T12 (ASCII8) + T13 (ASCII16-voorrang), 11 → 13 cases
+
+### Feature 6 — Drag-and-drop ROM/BIOS in UI
+- `CartridgeBrowser.qml` `DropArea { keys: ["text/uri-list"] }` + `filesDropped(urls)`-signal
+- `BiosManagerScreen.qml` idem
+- Visual feedback: `accentInfo` overlay bij `containsDrag`
+- `Main.qml` routes drops:
+  - Browser: `cartridges.addFromLocal(p, false)` per URL
+  - BIOS-screen: `.zip` → `biosZipExtractor.extractTo()`, anders → `bios.addFromLocal()`
+
+### Feature 7 — `presets/msx-browser.vdf` (Steam Input launcher-preset)
+- D-pad navigatie, A=RETURN, B=B, X=X (SaveState), Y=Y (Stop)
+- L1/R1 = PageUp/PageDown (lijst-jump 5 items)
+- L2/R2 = Home/End
+- Select = I (BIOS-screen), Start = U (URL-add ROM)
+- Steam wisselt automatisch met in-game preset (`Stream_Client/presets/msx-gamepad.vdf`)
+- English + Dutch lokalisatie
+
+### Code-orchestratie
+- **4 agents parallel** voor geïsoleerde componenten (SoftwareDb, BiosZipExtractor, RomTypeDetector Ascii uitbreiding, SaveStateModel thumbnails)
+- **Solo**: MsxCore DSK/CAS API, CartridgeModel mediaType, drag-and-drop QML, Main.qml-wiring, presets/msx-browser.vdf, CMakeLists integratie (alle agents werkten zonder Cmake-edits — ik consolideerde)
+- **Geen tussentijds testen** per user-instructie. Code-correctheid berust op static type-check + agent design-review + bestaande 28 ctest-cases die in v0.1.0 al groen waren.
+
+### Codenaam — TreasureOfUsas
+Konami MSX2 1987 platformer met dual-character mechanic. Past bij dual-thema:
+4 agents tegelijk + 2 cart slots + 2 floppy drives + 2 media-routes — "dubbel" overal.
+
+### Kleurcode: ORANJE (+0.1.0)
+2 nieuwe core-componenten (SoftwareDb + BiosZipExtractor) + MsxCore-uitbreiding + SaveStateModel-uitbreiding + RomTypeDetector-uitbreiding + 2 QML-files uitgebreid + nieuwe Steam Input preset. Cmake +`Qt6::GuiPrivate`. Geen breaking change.
+
+### Wat NIET in v0.2.0
+- Auto-`setCurrentMachine` via SoftwareDb (vereist accuratesse-rapport — v0.2.1)
+- Pause/resume + parallelle downloads (v0.3.0)
+- Tab-strip Main.qml-restructuur (v0.3.0; huidige modal-flow blijft)
+- SettingsScreen voor BIOS-dir/openMSX-pad config (v0.3.0)
+- Flatpak-build op Deck (Stap 21, 6e poging — vereist Deck SSH)
+- Auto-`screenshot`-trigger na save (timing-race — v0.2.1 met commandFinished signal)
+- Unit-tests voor BiosManager / FileDownloader / SaveStateModel-thumbnails / BiosZipExtractor / DSK/CAS — alleen RomTypeDetector + SoftwareDb hebben tests (v0.2.1+)
+
 ## v0.1.0-Xanadu (2026-06-08) — BIOS-bibliotheek + URL-downloads + 2 cart slots (ORANJE)
 
 > **Eerste 0.1.x release.** Op user-verzoek 3 features ineens, met **alle ontwerp-

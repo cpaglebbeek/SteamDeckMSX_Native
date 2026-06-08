@@ -21,13 +21,21 @@ add_library(steamdeckmsx_core STATIC
     FileDownloader.cc
     BiosManager.h
     BiosManager.cc
+    # v0.2.0-TreasureOfUsas
+    SoftwareDb.h
+    SoftwareDb.cc
+    BiosZipExtractor.h
+    BiosZipExtractor.cc
 )
 set_target_properties(steamdeckmsx_core PROPERTIES AUTOMOC ON)
 target_include_directories(steamdeckmsx_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+# v0.2.0: GuiPrivate voor QZipReader (zie BiosZipExtractor.cc CMAKE-TODO).
+find_package(Qt6 REQUIRED COMPONENTS GuiPrivate)
 target_link_libraries(steamdeckmsx_core PUBLIC
     Qt6::Core
     Qt6::Qml
     Qt6::Network
+    Qt6::GuiPrivate
 )
 
 qt_add_executable(steamdeckmsx_app

@@ -22,6 +22,29 @@ bool RomTypeDetector::hasScc(const QByteArray &rom)
     return rom.indexOf(kSccPattern) >= 0;
 }
 
+bool RomTypeDetector::hasAscii8(const QByteArray &rom)
+{
+    // Detecteer bank-switch naar 0x6800/0x7000/0x7800 (8KB-mapper).
+    // Echte ASCII8 schrijft naar alle 4 (0x6000+0x6800+0x7000+0x7800);
+    // vereenvoudigd: 3 van de laatste 3 aanwezig = match.
+    static const QByteArray p6800 = QByteArray::fromHex("320068");
+    static const QByteArray p7000 = QByteArray::fromHex("320070");
+    static const QByteArray p7800 = QByteArray::fromHex("320078");
+    int hits = 0;
+    if (rom.indexOf(p6800) >= 0) ++hits;
+    if (rom.indexOf(p7000) >= 0) ++hits;
+    if (rom.indexOf(p7800) >= 0) ++hits;
+    return hits >= 2;
+}
+
+bool RomTypeDetector::hasAscii16(const QByteArray &rom)
+{
+    // ASCII16 schrijft naar 0x6000 EN 0x7000 (16KB-banken). Beide vereist.
+    static const QByteArray p6000 = QByteArray::fromHex("320060");
+    static const QByteArray p7000 = QByteArray::fromHex("320070");
+    return rom.indexOf(p6000) >= 0 && rom.indexOf(p7000) >= 0;
+}
+
 RomTypeDetector::Mapper RomTypeDetector::detectMapper(const QByteArray &rom)
 {
     const auto size = rom.size();
@@ -30,9 +53,9 @@ RomTypeDetector::Mapper RomTypeDetector::detectMapper(const QByteArray &rom)
 
     // > 32KB → mapper-based. SCC-detect bepaalt sub-type.
     if (hasScc(rom)) return Mapper::KonamiSCC;
-
-    // Geen SCC + groot = Konami default. ASCII-detect verschuift naar v0.0.9.
-    return Mapper::Konami;
+    if (hasAscii16(rom)) return Mapper::Ascii16;
+    if (hasAscii8(rom))  return Mapper::Ascii8;
+    return Mapper::Konami;  // default voor >32KB blijft Konami
 }
 
 QString RomTypeDetector::sha1Hex(const QByteArray &rom)
@@ -57,9 +80,7 @@ RomTypeDetector::Result RomTypeDetector::detect(const QByteArray &rom)
         break;
     case Generation::MSX2:
         r.suggestedMachine = QStringLiteral("C-BIOS_MSX2");
-        r.reason = (r.mapper == Mapper::KonamiSCC)
-            ? QStringLiteral("ROM > 32KB + SCC-pattern → MSX2 + Konami SCC")
-            : QStringLiteral("ROM > 32KB → MSX2 + Konami mapper");
+        r.reason = QStringLiteral("ROM > 32KB → MSX2 + ") + mapperName(r.mapper) + QStringLiteral(" mapper");
         break;
     case Generation::MSX2plus:
         r.suggestedMachine = QStringLiteral("C-BIOS_MSX2+");

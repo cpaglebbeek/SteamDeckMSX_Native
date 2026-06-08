@@ -156,6 +156,29 @@ int main(int argc, char *argv[])
         EXPECT(r.sha1Hex.isEmpty());
     }
 
-    qInfo() << "test_romtypedetector: 11/11 cases PASS";
+    // ----- T12: ASCII8-mapper detect -----
+    {
+        QByteArray rom(64 * 1024, char(0x00));
+        rom.replace(0x200, 3, QByteArray::fromHex("320068"));
+        rom.replace(0x400, 3, QByteArray::fromHex("320070"));
+        rom.replace(0x600, 3, QByteArray::fromHex("320078"));
+        EXPECT(RomTypeDetector::hasAscii8(rom));
+        const auto r = RomTypeDetector::detect(rom);
+        EXPECT(r.generation == Gen::MSX2);
+        EXPECT(r.mapper == Map::Ascii8);
+        EXPECT(r.reason.contains(QStringLiteral("ASCII8")));
+    }
+
+    // ----- T13: ASCII16-mapper detect (heeft voorrang boven ASCII8 als allebei aanwezig) -----
+    {
+        QByteArray rom(64 * 1024, char(0x00));
+        rom.replace(0x100, 3, QByteArray::fromHex("320060"));  // 0x6000 write → ASCII16-signaal
+        rom.replace(0x300, 3, QByteArray::fromHex("320070"));  // 0x7000 write
+        EXPECT(RomTypeDetector::hasAscii16(rom));
+        const auto r = RomTypeDetector::detect(rom);
+        EXPECT(r.mapper == Map::Ascii16);
+    }
+
+    qInfo() << "test_romtypedetector: 13/13 cases PASS";
     return 0;
 }

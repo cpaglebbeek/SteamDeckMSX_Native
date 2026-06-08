@@ -73,6 +73,7 @@ Popup {
                         slotNum: model.slot
                         occupied: model.occupied
                         label: model.label
+                        thumbnailPath: model.thumbnailPath || ""
                         focused: GridView.isCurrentItem
                     }
                 }

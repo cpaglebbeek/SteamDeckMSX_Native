@@ -23,3 +23,9 @@ add_test(NAME savestatemodel_smoke COMMAND test_savestatemodel)
 add_executable(test_romtypedetector test_romtypedetector.cc)
 target_link_libraries(test_romtypedetector PRIVATE steamdeckmsx_core Qt6::Test)
 add_test(NAME romtypedetector_smoke COMMAND test_romtypedetector)
+
+# v0.2.0-TreasureOfUsas — SoftwareDb hash-lookup + XML-parse smoke
+add_executable(test_softwaredb test_softwaredb.cc)
+set_target_properties(test_softwaredb PROPERTIES AUTOMOC ON)
+target_link_libraries(test_softwaredb PRIVATE steamdeckmsx_core Qt6::Test)
+add_test(NAME softwaredb_smoke COMMAND test_softwaredb)

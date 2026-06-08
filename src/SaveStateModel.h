@@ -14,6 +14,7 @@ struct SaveStateSlot {
     QString name;              // openMSX savestate-name = "slot_<N>_<stem>"
     QDateTime lastUsed;        // QSettings timestamp
     bool occupied;             // from QSettings, no FS-verify in v0.0.6
+    QString thumbnailPath;     // v0.2.0
 };
 
 // 10-slot save-state grid (MSX-traditie). Per slot:
@@ -34,7 +35,8 @@ public:
         RomStemRole,
         LastUsedRole,
         OccupiedRole,
-        LabelRole       // formatted "Slot N · <stem> · <ts>" (or "Slot N · empty")
+        LabelRole,      // formatted "Slot N · <stem> · <ts>" (or "Slot N · empty")
+        ThumbnailPathRole,    // v0.2.0: absoluut pad naar slot thumbnail PNG, lege string als geen
     };
 
     static constexpr int kSlotCount = 10;
@@ -58,6 +60,14 @@ public slots:
     Q_INVOKABLE int saveTo(int slot);
     // load van slot N. Stuurt loadstate-cmd via core (alleen als occupied).
     Q_INVOKABLE int loadFrom(int slot);
+
+    // v0.2.0: vraag openMSX om screenshot voor slot N. Stuurt Tcl `screenshot -prefix slot_N`.
+    // Update thumbnailPath in model + persist. Geen-op als core niet attached/running.
+    Q_INVOKABLE int requestThumbnail(int slot);
+
+    // v0.2.0: helper voor QML — return absolute thumbnail-pad ("" als geen).
+    Q_INVOKABLE QString thumbnailFor(int slot) const;
+
     // Reset slot N (clear QSettings entry — geen FS-delete v0.0.6).
     Q_INVOKABLE void clear(int slot);
 
@@ -72,6 +82,9 @@ private:
     void load();
     void persistSlot(int slot);
     void emitSlotDataChanged(int slot);
+
+    // v0.2.0: bepaal storage-dir voor thumbnails (lazy create).
+    QString thumbnailDir() const;
 
     MsxCore *m_core{nullptr};
     QString m_currentRomStem{};

@@ -237,6 +237,51 @@ int MsxCore::removeRomSlotB()
     return sendCommand(QStringLiteral("cartb eject"));
 }
 
+// v0.2.0-TreasureOfUsas — Disk + Tape media.
+//
+// openMSX Tcl: `diska <pad>` / `diskb <pad>` voor floppy-images, `cassetteplayer
+// insert <pad>` of `casa <pad>` voor tape. Voor v0.2.0 gebruiken we `diska/diskb`
+// en `cassetteplayer insert` (officiële Tcl-naam in openMSX 21.0).
+int MsxCore::loadDsk(const QString &path, int drive)
+{
+    if (m_state != Running) {
+        qWarning() << "[MsxCore] loadDsk vereist Running state";
+        emit logMessage(QStringLiteral("warning"),
+                        QStringLiteral("Floppy alleen tijdens draaiend spel — start eerst een ROM of leeg-boot"));
+        return -1;
+    }
+    const QString cmd = (drive == 1)
+        ? QStringLiteral("diskb \"%1\"").arg(path)
+        : QStringLiteral("diska \"%1\"").arg(path);
+    qInfo().noquote() << "[MsxCore] loadDsk drive=" << drive << QFileInfo(path).fileName();
+    return sendCommand(cmd);
+}
+
+int MsxCore::loadCas(const QString &path)
+{
+    if (m_state != Running) {
+        emit logMessage(QStringLiteral("warning"),
+                        QStringLiteral("Cassette alleen tijdens draaiend spel"));
+        return -1;
+    }
+    qInfo().noquote() << "[MsxCore] loadCas" << QFileInfo(path).fileName();
+    return sendCommand(QStringLiteral("cassetteplayer insert \"%1\"").arg(path));
+}
+
+int MsxCore::ejectDsk(int drive)
+{
+    if (m_state != Running) return 0;
+    return sendCommand((drive == 1)
+        ? QStringLiteral("diskb eject")
+        : QStringLiteral("diska eject"));
+}
+
+int MsxCore::ejectCas()
+{
+    if (m_state != Running) return 0;
+    return sendCommand(QStringLiteral("cassetteplayer eject"));
+}
+
 int MsxCore::sendCommand(const QString &cmd)
 {
     if (m_process.state() != QProcess::Running) {

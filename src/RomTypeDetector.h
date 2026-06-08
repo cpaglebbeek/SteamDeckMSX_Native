@@ -52,6 +52,11 @@ public:
     // 95%+ accuraat voor commercieel SCC-titels.
     static bool hasScc(const QByteArray &romBytes);
 
+    // ASCII8-detect via 8KB-bank-switch write-pattern.
+    static bool hasAscii8(const QByteArray &romBytes);
+    // ASCII16-detect via 16KB-bank-switch write-pattern.
+    static bool hasAscii16(const QByteArray &romBytes);
+
     // SHA-1 hex-string van ROM-bytes (lowercase 40 chars). Voor softwaredb-lookup
     // (v0.0.10+) en als fingerprint in `Result.sha1Hex`. Lege input → lege string.
     static QString sha1Hex(const QByteArray &romBytes);

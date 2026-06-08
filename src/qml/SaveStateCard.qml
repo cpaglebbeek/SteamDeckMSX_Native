@@ -7,6 +7,7 @@ Rectangle {
     property bool occupied: false
     property string label: ""
     property int slotNum: 0
+    property string thumbnailPath: ""
 
     radius: 6
     color: occupied ? Tokens.bgElevated : Tokens.bgBase
@@ -16,6 +17,15 @@ Rectangle {
     border.width: focused ? Tokens.focusRingWidth : 1
 
     Behavior on border.color { ColorAnimation { duration: Tokens.motionFast } }
+
+    Image {
+        anchors.fill: parent
+        visible: card.thumbnailPath.length > 0
+        source: card.thumbnailPath.length > 0 ? "file://" + card.thumbnailPath : ""
+        fillMode: Image.PreserveAspectCrop
+        opacity: 0.35   // gedimd zodat tekst leesbaar blijft
+        cache: false    // refresh bij update
+    }
 
     Column {
         anchors.fill: parent

@@ -1,0 +1,63 @@
+"controller_mappings"
+{
+	"version"		"3"
+	"revision"		"1"
+	"title"			"SteamDeckMSX — browser/launcher"
+	"description"		"Steam Input preset voor SteamDeckMSX launcher-context (vóór game-start). I = BIOS-screen, U = URL-add ROM, S = Slot-picker. D-pad voor lijst-navigatie, A = activate, B = back/quit, Y = stop emulator, X = SaveState. L1/R1 = tab/pagina, L2/R2 = snel-scroll."
+	"creator"		"cpaglebbeek/SteamDeckMSX_Native"
+	"controller_type"	"controller_steamdeck"
+
+	"group"
+	{
+		"id"		"0"
+		"mode"		"absolute_mouse"
+		"name"		"launcher_dpad"
+		"inputs"
+		{
+			"dpad_north"  { "activators" { "Full_Press" { "bindings" { "binding" "key_press UP" } } } }
+			"dpad_south"  { "activators" { "Full_Press" { "bindings" { "binding" "key_press DOWN" } } } }
+			"dpad_west"   { "activators" { "Full_Press" { "bindings" { "binding" "key_press LEFT" } } } }
+			"dpad_east"   { "activators" { "Full_Press" { "bindings" { "binding" "key_press RIGHT" } } } }
+			"button_a"    { "activators" { "Full_Press" { "bindings" { "binding" "key_press RETURN" } } } }
+			"button_b"    { "activators" { "Full_Press" { "bindings" { "binding" "key_press B" } } } }
+			"button_x"    { "activators" { "Full_Press" { "bindings" { "binding" "key_press X" } } } }
+			"button_y"    { "activators" { "Full_Press" { "bindings" { "binding" "key_press Y" } } } }
+			"left_bumper"  { "activators" { "Full_Press" { "bindings" { "binding" "key_press PAGE_UP" } } } }
+			"right_bumper" { "activators" { "Full_Press" { "bindings" { "binding" "key_press PAGE_DOWN" } } } }
+			"left_trigger"  { "activators" { "Full_Press" { "bindings" { "binding" "key_press HOME" } } } }
+			"right_trigger" { "activators" { "Full_Press" { "bindings" { "binding" "key_press END" } } } }
+			"button_back"  { "activators" { "Full_Press" { "bindings" { "binding" "key_press I" } } } }
+			"button_start" { "activators" { "Full_Press" { "bindings" { "binding" "key_press U" } } } }
+		}
+	}
+
+	"localization"
+	{
+		"english"
+		{
+			"title"		"SteamDeckMSX — browser/launcher"
+			"description"	"Pre-game launcher: D-pad navigation, A=activate, B=back, X=savestate, Y=stop. Select=BIOS, Start=URL-ROM. L1/R1=PageUp/Down, L2/R2=Home/End."
+		}
+		"dutch"
+		{
+			"title"		"SteamDeckMSX — browser/launcher"
+			"description"	"Vóór-spel launcher: D-pad navigatie, A=activate, B=terug, X=savestate, Y=stop. Select=BIOS, Start=URL-ROM. L1/R1=PageUp/Down, L2/R2=Home/End."
+		}
+	}
+}
+
+// Mapping-overzicht (commentaar):
+//   Steam Deck knop | App-actie / KB-event
+//   ----------------------------------------
+//   D-pad           | Lijst-navigatie (UP/DOWN/LEFT/RIGHT)
+//   A               | RETURN (activate cartridge)
+//   B               | B-key (back / quit confirm)
+//   X               | X-key (save-state overlay)
+//   Y               | Y-key (stop emulator)
+//   L1 / R1         | PageUp/PageDown (5 items snel)
+//   L2 / R2         | Home/End (begin/eind lijst)
+//   Select (Back)   | I-key (BIOS-screen)
+//   Start           | U-key (URL-import ROM)
+//
+// Steam wisselt automatisch tussen deze browser-preset en de in-game preset
+// (msx-gamepad.vdf in Stream_Client) op basis van app-context.

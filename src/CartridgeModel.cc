@@ -12,6 +12,20 @@
 namespace {
 constexpr auto kSettingsKey = "recents/cartridges";
 
+}  // end anon namespace
+
+// v0.2.0: media-type op basis van filename-extensie.
+QString CartridgeModel::mediaTypeFor(const QString &path)
+{
+    const QString lower = path.toLower();
+    if (lower.endsWith(QStringLiteral(".dsk"))) return QStringLiteral("dsk");
+    if (lower.endsWith(QStringLiteral(".cas"))) return QStringLiteral("cas");
+    if (lower.endsWith(QStringLiteral(".rom"))) return QStringLiteral("rom");
+    if (lower.endsWith(QStringLiteral(".zip"))) return QStringLiteral("zip");
+    return QStringLiteral("rom");  // default fallback
+}
+
+namespace {
 QString machineHeuristic(const QString &fileName)
 {
     const QString lower = fileName.toLower();
@@ -250,6 +264,7 @@ QVariant CartridgeModel::data(const QModelIndex &index, int role) const
         case LastUsedRole:   return e.lastUsedUnix;
         case Sha1Role:       return e.sha1Hex;       // v0.1.0
         case SourceRole:     return e.source;        // v0.1.0
+        case MediaTypeRole:  return mediaTypeFor(e.romPath);  // v0.2.0
         default:             return {};
     }
 }
@@ -264,5 +279,6 @@ QHash<int, QByteArray> CartridgeModel::roleNames() const
         {LastUsedRole,   "lastUsed"},
         {Sha1Role,       "sha1Hex"},      // v0.1.0
         {SourceRole,     "source"},       // v0.1.0
+        {MediaTypeRole,  "mediaType"},    // v0.2.0
     };
 }

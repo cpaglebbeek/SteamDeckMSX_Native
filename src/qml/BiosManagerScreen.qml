@@ -15,7 +15,9 @@ Popup {
     property var biosModel
     signal addFromUrlClicked()
     signal addFromLocalClicked()
+    signal addFromZipClicked()       // v0.2.0
     signal removeBios(string id)
+    signal filesDropped(var urls)    // v0.2.0
     signal closed()  // user-close
 
     width: parent ? parent.width * 0.95 : 1200
@@ -27,6 +29,24 @@ Popup {
         border.color: Tokens.borderSubtle
         border.width: 1
         radius: 8
+
+        // v0.2.0: drag-and-drop voor BIOS-files (rom/sys/bin/zip).
+        DropArea {
+            anchors.fill: parent
+            keys: ["text/uri-list"]
+            onDropped: function(drop) {
+                const urls = []
+                for (let i = 0; i < drop.urls.length; ++i) urls.push(drop.urls[i])
+                if (urls.length > 0) { scr.filesDropped(urls); drop.accept() }
+            }
+            Rectangle {
+                anchors.fill: parent
+                color: Tokens.accentInfo
+                opacity: parent.containsDrag ? 0.10 : 0
+                radius: 8
+                Behavior on opacity { NumberAnimation { duration: Tokens.motionFast } }
+            }
+        }
     }
 
     contentItem: Column {
@@ -60,8 +80,13 @@ Popup {
                 onClicked: scr.addFromUrlClicked()
             }
             Button {
+                text: qsTr("+ ZIP")
+                width: 110; height: Tokens.minInteractive
+                onClicked: scr.addFromZipClicked()  // v0.2.0
+            }
+            Button {
                 text: qsTr("Sluiten (B)")
-                width: 140; height: Tokens.minInteractive
+                width: 130; height: Tokens.minInteractive
                 onClicked: { scr.closed(); scr.close() }
             }
         }

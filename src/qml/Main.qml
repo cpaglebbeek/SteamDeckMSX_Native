@@ -81,6 +81,28 @@ ApplicationWindow {
         }
     }
 
+    // v0.2.0-TreasureOfUsas: software-database voor SHA-1 → machine lookup.
+    SoftwareDb {
+        id: softwaredb
+        Component.onCompleted: loadBootstrapData()
+    }
+
+    // v0.2.0-TreasureOfUsas: ZIP-extract voor BIOS-sets.
+    BiosZipExtractor {
+        id: biosZipExtractor
+        onFileExtracted: function(fileName) {
+            // Iedere geslaagde file landt in bios-storage; registreer via BiosManager.
+            const dest = bios.storageDir() + "/" + fileName
+            bios.addFromLocal(dest)
+        }
+        onSkipped: function(fileName, reason) {
+            toast.show(qsTr("ZIP-skip: ") + fileName + qsTr(" (") + reason + qsTr(")"), "warning")
+        }
+        onParseError: function(reason) {
+            toast.show(qsTr("ZIP-fout: ") + reason, "error")
+        }
+    }
+
     // v0.1.0-Xanadu: BIOS-bibliotheek (DD-007).
     BiosManager {
         id: bios
@@ -127,13 +149,37 @@ ApplicationWindow {
         }
     }
 
+    // v0.2.0: ZIP-picker.
+    FileDialog {
+        id: biosZipPicker
+        title: qsTr("Selecteer een BIOS-set ZIP")
+        nameFilters: [ qsTr("ZIP-archief (*.zip)"), qsTr("Alle bestanden (*)") ]
+        onAccepted: {
+            const p = selectedFile.toString().replace("file://", "")
+            const n = biosZipExtractor.extractTo(p, bios.storageDir())
+            toast.show(qsTr("ZIP-extract: ") + n + qsTr(" BIOS-files toegevoegd"), "info")
+        }
+    }
+
     BiosManagerScreen {
         id: biosScreen
         parent: Overlay.overlay
         biosModel: bios
         onAddFromUrlClicked: { urlImportDialog.target = "bios"; urlImportDialog.open() }
         onAddFromLocalClicked: biosLocalPicker.open()
+        onAddFromZipClicked: biosZipPicker.open()        // v0.2.0
         onRemoveBios: function(id) { bios.removeEntry(id) }
+        onFilesDropped: function(urls) {                  // v0.2.0
+            for (let i = 0; i < urls.length; ++i) {
+                const u = urls[i].toString()
+                const p = u.replace("file://", "")
+                if (p.toLowerCase().endsWith(".zip")) {
+                    biosZipExtractor.extractTo(p, bios.storageDir())
+                } else {
+                    bios.addFromLocal(p)
+                }
+            }
+        }
     }
 
     SlotPickerDialog {
@@ -166,9 +212,23 @@ ApplicationWindow {
         ]
         onAccepted: {
             const path = selectedFile.toString().replace("file://", "")
-            cartridges.addRom(path)
-            msxCore.start(path)
-            toast.show(qsTr("Laden: ") + path.split("/").pop(), "info")
+            const lower = path.toLowerCase()
+            // v0.2.0-TreasureOfUsas: route per media-type.
+            if (lower.endsWith(".dsk")) {
+                cartridges.addRom(path)
+                if (msxCore.state !== MsxCore.Running) msxCore.start("")
+                msxCore.loadDsk(path, 0)
+                toast.show(qsTr("Floppy: ") + path.split("/").pop(), "info")
+            } else if (lower.endsWith(".cas")) {
+                cartridges.addRom(path)
+                if (msxCore.state !== MsxCore.Running) msxCore.start("")
+                msxCore.loadCas(path)
+                toast.show(qsTr("Cassette: ") + path.split("/").pop(), "info")
+            } else {
+                cartridges.addRom(path)
+                msxCore.start(path)
+                toast.show(qsTr("Laden: ") + path.split("/").pop(), "info")
+            }
         }
     }
 
@@ -251,10 +311,34 @@ ApplicationWindow {
                 onActivated: function(index, entry) {
                     if (entry.isSentinel) {
                         romPicker.open()
-                    } else if (entry.romPath && entry.romPath.length > 0) {
+                        return
+                    }
+                    if (!entry.romPath || entry.romPath.length === 0) return
+                    // v0.2.0-TreasureOfUsas: media-type-route.
+                    const lower = entry.romPath.toLowerCase()
+                    if (lower.endsWith(".dsk")) {
+                        // Floppy → vereist running emulator. Start eerst (C-BIOS), dan diska.
+                        if (msxCore.state !== MsxCore.Running) {
+                            msxCore.start("")  // boot zonder cart
+                        }
+                        msxCore.loadDsk(entry.romPath, 0)
+                        toast.show(qsTr("Floppy A: ") + entry.title, "info")
+                    } else if (lower.endsWith(".cas")) {
+                        if (msxCore.state !== MsxCore.Running) msxCore.start("")
+                        msxCore.loadCas(entry.romPath)
+                        toast.show(qsTr("Cassette: ") + entry.title, "info")
+                    } else {
                         msxCore.start(entry.romPath)
                         toast.show(qsTr("Start: ") + entry.title, "info")
                     }
+                }
+                // v0.2.0: drag-and-drop op browser.
+                onFilesDropped: function(urls) {
+                    for (let i = 0; i < urls.length; ++i) {
+                        const p = urls[i].toString().replace("file://", "")
+                        cartridges.addFromLocal(p, false)
+                    }
+                    toast.show(qsTr("Toegevoegd: ") + urls.length + qsTr(" bestand(en)"), "info")
                 }
             }
 
