@@ -48,6 +48,11 @@ modules:
   # Build van openMSX zelf via z'n homemade Make. Geen ./configure stap nodig.
   - name: openmsx
     buildsystem: simple
+    build-options:
+      env:
+        # openMSX-probe zoekt tclConfig.sh alleen in /usr(/local); wijs expliciet
+        # naar de Flatpak-prefix waar de tcl-module hem neerzet (BUG-011).
+        TCL_CONFIG: /app/lib
     build-commands:
       - make -j${FLATPAK_BUILDER_N_JOBS:-4} OPENMSX_TARGET_OS=linux
       - install -Dm755 derived/*-linux-opt/bin/openmsx ${FLATPAK_DEST}/bin/openmsx
