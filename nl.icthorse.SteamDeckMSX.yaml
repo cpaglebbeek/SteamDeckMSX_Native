@@ -52,6 +52,9 @@ modules:
       - make SYSTEM=linux GLEW_DEST=${FLATPAK_DEST} LIBDIR=${FLATPAK_DEST}/lib -j${FLATPAK_BUILDER_N_JOBS:-4}
       - make SYSTEM=linux GLEW_DEST=${FLATPAK_DEST} LIBDIR=${FLATPAK_DEST}/lib install
       - chmod 755 ${FLATPAK_DEST}/lib/libGLEW.so.2.2.0
+      # KDE-SDK heeft geen GL/glu.h; openMSX gebruikt geen GLU-functies —
+      # GLEW_NO_GLU voorkomt de include-keten (BUG-011).
+      - sed -i '1i #define GLEW_NO_GLU' ${FLATPAK_DEST}/include/GL/glew.h
     sources:
       - type: archive
         url: https://github.com/nigels-com/glew/releases/download/glew-2.2.0/glew-2.2.0.tgz
