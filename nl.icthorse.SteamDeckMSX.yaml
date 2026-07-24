@@ -1,24 +1,23 @@
-# Flatpak manifest — SteamDeckMSX_Native v0.0.3-Castlevania
+# Flatpak manifest — SteamDeckMSX_Native v0.2.1-KingsValley
 #
-# Status: build-commands aanwezig. End-to-end nog niet getest op Steam Deck
-# (Christian heeft stap 21 v0.0.3 'skip nu' gekozen — eerste echte run komt v0.0.4).
-#
-# Beslissingen vastgelegd v0.0.2-Nemesis (ARCHITECTURE.md):
-# - runtime org.freedesktop.Platform 23.08
-# - UI-toolkit Qt6, koppeling subprocess+control-channel
-# - permissies: GEEN --share=network (variant 1 = offline)
-#               GEEN --filesystem=home (BIOS/ROMs via Flatpak portal)
-# - Steam Input passthrough via --device=input (P-SDM-06)
+# REVISIE 2026-07-24 (BUG-011, RCA in BUGLIST.md):
+# - runtime org.freedesktop.Platform 23.08 → org.kde.Platform 6.7: fd.o-runtime
+#   bevat GEEN Qt6 — vermoedelijke root cause van 5 eerdere buildfails.
+#   KDE 6.7 = Qt 6.7 → qzipreader_p.h zit daar nog in QtGui (BUG-009 fallback).
+# - --share=network TOEGEVOEGD: herziening v0.0.2-besluit "offline". Sinds
+#   v0.1.0 zijn URL-import (ROMs) + BIOS-downloads kernfeatures; hiermee laadt
+#   de Deck-app Nemesis 1+2 direct van https://horsecloud55.ddns.net/steam/konami/
+# - Overig ongewijzigd: subprocess-koppeling, portal i.p.v. --filesystem=home,
+#   Steam Input passthrough via --device=input (P-SDM-06)
 
 app-id: nl.icthorse.SteamDeckMSX
-runtime: org.freedesktop.Platform
-runtime-version: '23.08'
-sdk: org.freedesktop.Sdk
-sdk-extensions:
-  - org.freedesktop.Sdk.Extension.llvm18
+runtime: org.kde.Platform
+runtime-version: '6.7'
+sdk: org.kde.Sdk
 command: steamdeckmsx
 
 finish-args:
+  - --share=network
   - --socket=wayland
   - --socket=fallback-x11
   - --share=ipc
@@ -50,7 +49,7 @@ modules:
       - -DSTEAMDECKMSX_TARGET=steamdeck
       - -DSTEAMDECKMSX_UI_TOOLKIT=qt6
       - -DSTEAMDECKMSX_OPENMSX_LINK=subprocess
-      - -DSTEAMDECKMSX_VERSION_CODENAME=Castlevania
+      - -DSTEAMDECKMSX_VERSION_CODENAME=KingsValley
     sources:
       - type: dir
         path: .
