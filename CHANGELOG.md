@@ -1,5 +1,20 @@
 # CHANGELOG — SteamDeckMSX_Native
 
+## v0.2.1-KingsValley (2026-07-24) — Mac smoke-test + compile-fixes: v0.2.0 bouwt voor het eerst (groen)
+
+> v0.2.0-TreasureOfUsas was geleverd zónder build (4-agent + solo, per user-besluit).
+> Deze release maakt hem compileerbaar en bewijst 5/5 testbinaries groen (3× stabiel).
+
+- **BUG-009 (geel):** Qt 6.11 verplaatste `qzipreader_p.h` van QtGui naar QtCore →
+  `__has_include`-fallback in BiosZipExtractor.cc + `Qt6::CorePrivate` naast GuiPrivate
+  in src/CMakeLists.txt (blijft compatibel met oudere Qt in Flatpak-runtime);
+  plus ontbrekende `#include <QRegularExpression>`
+- **BUG-010 (groen):** flaky `msxcore_smoke` — 1s-wachtlus (10×100ms) te krap onder
+  buildload; verruimd naar 5s (4 plekken in test_msxcore.cc)
+- Restscope v0.2.1-plan (auto-setCurrentMachine, commandFinished, slot B-floppy-UI,
+  MIME-detect, tests-backfill, ROM-header parse) → verschoven; prioriteit user:
+  Flatpak-route naar werkende Deck-app met Nemesis 1+2
+
 ## v0.2.0-TreasureOfUsas (2026-06-08) — SoftwareDb + ZIP-extract + DSK/CAS + thumbnails + Ascii8/16 + drag-and-drop (ORANJE)
 
 > **Tweede 0.x release.** User-verzoek: "ga verder met bouwen. gebruik zoveel

@@ -113,7 +113,7 @@ int main(int argc, char *argv[])
         // wacht tot proces eindigt (mock exits direct)
         stateSpy.wait(2000);
         // eventueel meerdere state-changes; spin tot Idle
-        for (int i = 0; i < 10 && core.state() != MsxCore::Idle; ++i) {
+        for (int i = 0; i < 50 && core.state() != MsxCore::Idle; ++i) {  // BUG-010: 1s was te krap onder load (flaky)
             QTest::qWait(100);
         }
         EXPECT(replySpy.count() >= 1);
@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
         core.setOpenmsxPath(script);
         QSignalSpy updateSpy(&core, &MsxCore::stateUpdate);
         core.start();
-        for (int i = 0; i < 10 && core.state() != MsxCore::Idle; ++i) {
+        for (int i = 0; i < 50 && core.state() != MsxCore::Idle; ++i) {  // BUG-010: 1s was te krap onder load (flaky)
             QTest::qWait(100);
         }
         EXPECT(updateSpy.count() >= 1);
@@ -156,7 +156,7 @@ int main(int argc, char *argv[])
         core.setOpenmsxPath(script);
         QSignalSpy logSpy(&core, &MsxCore::logMessage);
         core.start();
-        for (int i = 0; i < 10 && core.state() != MsxCore::Idle; ++i) {
+        for (int i = 0; i < 50 && core.state() != MsxCore::Idle; ++i) {  // BUG-010: 1s was te krap onder load (flaky)
             QTest::qWait(100);
         }
         EXPECT(logSpy.count() >= 1);
@@ -184,7 +184,7 @@ int main(int argc, char *argv[])
         QSignalSpy stateSpy(&core, &MsxCore::stateChanged);
         core.start();
         // wacht tot eindstate bereikt
-        for (int i = 0; i < 10 && core.state() != MsxCore::Idle; ++i) {
+        for (int i = 0; i < 50 && core.state() != MsxCore::Idle; ++i) {  // BUG-010: 1s was te krap onder load (flaky)
             QTest::qWait(100);
         }
         // Verifieer dat Running ergens in de transitie zat

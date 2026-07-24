@@ -12,6 +12,16 @@ _(geen open bugs op v0.0.5-SolidSnake)_
 
 ## Opgelost
 
+### BUG-009 (geel) — Qt 6.11: qzipreader_p.h verhuisd QtGui→QtCore — v0.2.1-KingsValley 2026-07-24
+- **Functioneel:** BiosZipExtractor.cc compileerde niet ("file not found") → hele core-lib + app onbuildbaar.
+- **Technisch:** Qt 6.11 verplaatste de private QZipReader-header naar QtCore; ook ontbrak `#include <QRegularExpression>` (nooit gebouwd in v0.2.0). Fix: `__has_include`-keuze + CorePrivate én GuiPrivate linken.
+- **Architectonisch:** private-Qt-API-afhankelijkheid (bewuste keuze v0.2.0 i.p.v. QuaZip-dep) is versie-fragiel; gemitigeerd met feature-detectie i.p.v. harde pad-aanname.
+
+### BUG-010 (groen) — flaky msxcore_smoke onder buildload — v0.2.1-KingsValley 2026-07-24
+- **Functioneel:** testsuite faalde incidenteel (logSpy leeg) direct na parallelle build; solo altijd groen.
+- **Technisch:** wachtlus 10×100ms = 1s te krap voor mock-proces onder load; nu 50×100ms (4 plekken).
+- **Architectonisch:** timing-gevoelige asserts horen ruime bovengrens + conditie-check te hebben, geen krappe vaste budgetten.
+
 ### BUG-004 — Geel (runtime) — OPENMSX_SYSTEM_DATA env-var (✅ FIXED v0.0.5)
 - **Geopend:** 2026-05-31 (v0.0.4-Aleste)
 - **Symptoom:** `Couldn't find machines/C-BIOS_MSX2+.xml in any of: ~/.openMSX/share, <repo>/externals/openmsx/share`

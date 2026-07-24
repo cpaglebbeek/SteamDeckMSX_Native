@@ -11,13 +11,19 @@
 
 #include "BiosZipExtractor.h"
 
+// Qt 6.11 verplaatste qzipreader_p.h van QtGui naar QtCore (BUG-009).
+#if __has_include(<QtCore/private/qzipreader_p.h>)
+#include <QtCore/private/qzipreader_p.h>
+#else
 #include <QtGui/private/qzipreader_p.h>
+#endif
 
 #include <QByteArray>
 #include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QRegularExpression>
 #include <QSet>
 #include <QString>
 
