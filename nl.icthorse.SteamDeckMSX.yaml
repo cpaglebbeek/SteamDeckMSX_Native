@@ -55,6 +55,9 @@ modules:
       # KDE-SDK heeft geen GL/glu.h; openMSX gebruikt geen GLU-functies —
       # GLEW_NO_GLU voorkomt de include-keten (BUG-011).
       - "sed -i '1i #define GLEW_NO_GLU' ${FLATPAK_DEST}/include/GL/glew.h"
+      # glew-install levert geen dev-symlink; -lGLEW faalt zonder (BUG-011).
+      - ln -sf libGLEW.so.2.2.0 ${FLATPAK_DEST}/lib/libGLEW.so.2.2
+      - ln -sf libGLEW.so.2.2 ${FLATPAK_DEST}/lib/libGLEW.so
     sources:
       - type: archive
         url: https://github.com/nigels-com/glew/releases/download/glew-2.2.0/glew-2.2.0.tgz
@@ -69,6 +72,9 @@ modules:
         # openMSX-probe zoekt tclConfig.sh alleen in /usr(/local); wijs expliciet
         # naar de Flatpak-prefix waar de tcl-module hem neerzet (BUG-011).
         TCL_CONFIG: /app/lib
+        # openMSX-probe linkt direct via g++ zonder -L/app/lib; gcc/ld
+        # honoreren LIBRARY_PATH wél (BUG-011).
+        LIBRARY_PATH: /app/lib
     build-commands:
       - make -j${FLATPAK_BUILDER_N_JOBS:-4} OPENMSX_TARGET_OS=linux
       - install -Dm755 derived/*-linux-opt/bin/openmsx ${FLATPAK_DEST}/bin/openmsx
