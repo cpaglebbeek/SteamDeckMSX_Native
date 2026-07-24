@@ -1,3 +1,4 @@
 [submodule "externals/openmsx"]
 	path = externals/openmsx
 	url = https://github.com/cpaglebbeek/openMSX-steamdeckmsx.git
+	branch = steamdeckmsx-flatpak
