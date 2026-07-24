@@ -76,7 +76,9 @@ modules:
         # honoreren LIBRARY_PATH wél (BUG-011).
         LIBRARY_PATH: /app/lib
     build-commands:
-      - make -j${FLATPAK_BUILDER_N_JOBS:-4} OPENMSX_TARGET_OS=linux
+      # 3RDPARTY_INSTALL_DIR=/app: probe linkt dan met -L/app/lib (officieel
+      # openMSX-mechanisme; LIBRARY_PATH bereikte de probe niet) (BUG-011).
+      - make -j${FLATPAK_BUILDER_N_JOBS:-4} OPENMSX_TARGET_OS=linux 3RDPARTY_INSTALL_DIR=/app
       - install -Dm755 derived/*-linux-opt/bin/openmsx ${FLATPAK_DEST}/bin/openmsx
       # C-BIOS bundeling — open source MSX BIOS replacement (P-SDM-05)
       - install -Dm644 -t ${FLATPAK_DEST}/share/openmsx/machines derived/*-linux-opt/bindist/share/machines/*.xml
