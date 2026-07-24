@@ -44,6 +44,19 @@ modules:
         url: https://prdownloads.sourceforge.net/tcl/tcl8.6.16-src.tar.gz
         sha256: 91cb8fa61771c63c262efb553059b7c7ad6757afa5857af6265e4b0bdc2a14a5
 
+  # GLEW — openMSX v21 include't GL/glew.h onvoorwaardelijk (ook zonder
+  # GL-renderer-component); KDE-SDK levert geen GLEW (BUG-011).
+  - name: glew
+    buildsystem: simple
+    build-commands:
+      - make SYSTEM=linux GLEW_DEST=${FLATPAK_DEST} LIBDIR=${FLATPAK_DEST}/lib -j${FLATPAK_BUILDER_N_JOBS:-4}
+      - make SYSTEM=linux GLEW_DEST=${FLATPAK_DEST} LIBDIR=${FLATPAK_DEST}/lib install
+      - chmod 755 ${FLATPAK_DEST}/lib/libGLEW.so.2.2.0
+    sources:
+      - type: archive
+        url: https://github.com/nigels-com/glew/releases/download/glew-2.2.0/glew-2.2.0.tgz
+        sha256: d4fc82893cfb00109578d0a1a2337fb8ca335b3ceccf97b97e5cc7f08e4353e1
+
   # openMSX core — gepinned op tag RELEASE_21_0 (commit cb61db762)
   # Build van openMSX zelf via z'n homemade Make. Geen ./configure stap nodig.
   - name: openmsx
