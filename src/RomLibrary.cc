@@ -265,9 +265,38 @@ void RomLibrary::beginScan()
     m_tick->start();
 }
 
+bool RomLibrary::looksLikeSystemRom(const QString &path)
+{
+    // Alleen cartridges beoordelen; een .dsk of .cas heeft geen ROM-header.
+    if (!path.endsWith(QStringLiteral(".rom"), Qt::CaseInsensitive)) return false;
+
+    // Signaal 1 — naam. Vangt de hele cbios_*-familie in één keer.
+    const QString name = QFileInfo(path).fileName().toLower();
+    if (name.contains(QStringLiteral("bios"))) return true;
+
+    // Signaal 2 — cartridge-header. Een MSX-cartridge begint met "AB", op
+    // offset 0 of op 0x4000. Systeem-ROMs missen die.
+    //
+    // Beide signalen zijn nodig: gemeten op de C-BIOS-set filtert de header 17
+    // van de 19 bestanden weg, maar cbios_music en cbios_disk hébben een
+    // "AB"-header (het zijn cartridge-achtige uitbreidings-ROMs) — die vangt
+    // alleen de naam. Omgekeerd heeft een BIOS-dump zonder "bios" in de naam
+    // wél de headercheck nodig.
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly)) return false;   // bij twijfel niet verbergen
+    const QByteArray head = f.read(2);
+    if (head == QByteArrayLiteral("AB")) return false;
+    if (!f.seek(0x4000)) return true;
+    return f.read(2) != QByteArrayLiteral("AB");
+}
+
 void RomLibrary::processFile(const QString &path)
 {
     ++m_scannedFiles;
+
+    // Vóór de cache-lookup: anders blijven systeem-ROMs die een oudere versie
+    // al had opgeslagen in de galerij staan na een upgrade.
+    if (looksLikeSystemRom(path)) return;
 
     QFileInfo fi(path);
     const qint64 size  = fi.size();

@@ -109,6 +109,10 @@ private:
     // systeemmappen. Zonder deze filter loopt een scan van Documenten dood in
     // .git/node_modules-bomen.
     static bool shouldSkipDir(const QString &dirName);
+    // Systeem-ROMs (BIOS, kanji, sub-ROM) zijn geen spellen en horen niet als
+    // tegel in de galerij. Combineert twee signalen omdat geen van beide alleen
+    // volstaat — zie de implementatie.
+    static bool looksLikeSystemRom(const QString &path);
 
     // Per tick verwerkte bestanden. Klein genoeg om frames niet te missen,
     // groot genoeg om een map met honderden ROMs snel door te komen.

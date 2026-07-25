@@ -20,7 +20,19 @@ class TestRomLibrary : public QObject {
 private:
     QTemporaryDir m_appData;   // isoleert cache + thumbs van de echte installatie
 
+    // Schrijft een geldige cartridge: .rom-bestanden krijgen de "AB"-header die
+    // een echte MSX-cartridge ook heeft. Zonder die header ziet de scanner het
+    // (terecht) als systeem-ROM en houdt hij het uit de galerij.
     static void writeRom(const QString &path, const QByteArray &content)
+    {
+        const bool isRom = path.endsWith(QStringLiteral(".rom"), Qt::CaseInsensitive);
+        writeRaw(path, isRom && !content.startsWith(QByteArrayLiteral("AB"))
+                           ? QByteArrayLiteral("AB") + content
+                           : content);
+    }
+
+    // Schrijft bytes ongewijzigd — voor bestanden die juist géén cartridge zijn.
+    static void writeRaw(const QString &path, const QByteArray &content)
     {
         QDir().mkpath(QFileInfo(path).absolutePath());
         QFile f(path);
@@ -112,6 +124,43 @@ private slots:
         // omdat een scan daar anders in vastloopt.
         QCOMPARE(lib.rowCount(), 1);
         QCOMPARE(lib.entryAt(0).value("title").toString(), QStringLiteral("zichtbaar"));
+    }
+
+    // v0.3.1: BIOS- en systeem-ROMs zijn geen spellen. Op HC55 vulde de
+    // galerij zich met 19 C-BIOS-bestanden uit een build-map.
+    void hidesSystemRomsFromGallery()
+    {
+        QTemporaryDir roms;
+        QVERIFY(roms.isValid());
+        const QByteArray cart = QByteArrayLiteral("AB") + QByteArray(2048, 'G');
+
+        writeRom(roms.filePath("echtspel.rom"), cart);
+        // Geen cartridge-header -> systeem-ROM.
+        writeRaw(roms.filePath("systeem.rom"), QByteArray("\xf3\xc3", 2) + QByteArray(2048, 'S'));
+        // Wél een header, maar "bios" in de naam -> alsnog systeem (cbios_music/disk).
+        writeRaw(roms.filePath("cbios_music.rom"), cart);
+        writeRaw(roms.filePath("cbios_main_msx2.rom"), QByteArray("\xf3\xc3", 2) + QByteArray(2048, 'B'));
+
+        RomLibrary lib;
+        lib.setScanRoots({roms.path()});
+        QVERIFY(waitForScan(lib));
+
+        QCOMPARE(lib.rowCount(), 1);
+        QCOMPARE(lib.entryAt(0).value("title").toString(), QStringLiteral("echtspel"));
+    }
+
+    void keepsDiskAndTapeImagesWithoutRomHeader()
+    {
+        // De headercheck geldt alleen voor .rom — een .dsk heeft er geen.
+        QTemporaryDir roms;
+        QVERIFY(roms.isValid());
+        writeRom(roms.filePath("floppy.dsk"), QByteArray(4096, 'D'));
+        writeRom(roms.filePath("tape.cas"), QByteArray(4096, 'C'));
+
+        RomLibrary lib;
+        lib.setScanRoots({roms.path()});
+        QVERIFY(waitForScan(lib));
+        QCOMPARE(lib.rowCount(), 2);
     }
 
     void findsRomsInSubdirectories()
