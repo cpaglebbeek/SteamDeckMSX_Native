@@ -113,6 +113,15 @@ modules:
     sources:
       - type: dir
         path: externals/openmsx
+        skip:
+          # openMSX bouwt IN de bronmap: `derived/` bevat alle objectbestanden.
+          # Zonder deze uitsluiting verandert de inhoud van de bronmap bij elke
+          # build, ziet flatpak-builder een nieuwe bron en hercompileert hij de
+          # hele emulator — ~8 minuten per ronde, ook als er niets aan openMSX
+          # veranderd is. Met de uitsluiting blijft de cache geldig en is alleen
+          # de Qt-laag aan de beurt.
+          - derived
+          - .git
 
   # SteamDeckMSX_Native — Qt6 UI-laag
   - name: steamdeckmsx-ui
