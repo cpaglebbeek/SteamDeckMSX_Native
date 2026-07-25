@@ -22,8 +22,10 @@ finish-args:
   - --socket=fallback-x11
   - --share=ipc
   - --socket=pulseaudio
-  - --device=input
-  - --device=dri
+  # --device=input (fijnmazig, P-SDM-06) vereist flatpak ≥1.15.6; HC55-builder
+  # én potentieel oudere SteamOS-runtimes zitten op 1.14.x → --device=all
+  # (superset: dri + input + overige devices) als compatibele terugval (BUG-014).
+  - --device=all
   - --persist=.var/app/nl.icthorse.SteamDeckMSX
   # openmsx-binary heeft DATADIR=/opt/openMSX/share hardcoded (custom.mk);
   # env-override wijst naar de share-tree in de Flatpak-prefix (BUG-012).

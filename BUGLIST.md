@@ -10,6 +10,11 @@ _(geen tot v0.0.3-Mac-smoke-build is gevalideerd)_
 
 _(geen open bugs op v0.0.5-SolidSnake)_
 
+### BUG-014 (groen) — --device=input vereist flatpak ≥1.15.6 — v0.2.1-KingsValley 2026-07-25 [IN BEHANDELING]
+- **Functioneel:** build faalt in allerlaatste stap "Finishing app": `Unknown device type input, valid types are: dri, all, kvm, shm`.
+- **Technisch:** HC55 draait flatpak 1.14.6; het fijnmazige `--device=input` bestaat pas sinds 1.15.6. Fix: `--device=input` + `--device=dri` → `--device=all` (superset, overal ondersteund).
+- **Architectonisch:** finish-args worden door de bouwende flatpak-versie gevalideerd; manifest moet op de oudste ondersteunde flatpak (builder én SteamOS-runtime) mikken. P-SDM-06 (gamepad-passthrough) blijft gedekt via `all`.
+
 ### BUG-013 (geel) — KDE-SDK 6.7 levert geen Qt6CorePrivate/GuiPrivate cmake-packages — v0.2.1-KingsValley 2026-07-25 [IN BEHANDELING]
 - **Functioneel:** steamdeckmsx-ui-module faalt op configure: `find_package(Qt6 REQUIRED COMPONENTS CorePrivate GuiPrivate)` → Qt6_FOUND=FALSE.
 - **Technisch:** de Flatpak-SDK bouwt Qt zónder de losse *Private cmake-packages; `qzipreader_p.h` zit er wél in (`/usr/include/QtCore/6.7.3/QtCore/private/`). Fix: private components via `OPTIONAL_COMPONENTS`, targets alleen linken als ze bestaan, anders fallback op `${Qt6Core_PRIVATE_INCLUDE_DIRS}` + `${Qt6Gui_PRIVATE_INCLUDE_DIRS}` (QZip-symbolen zitten in Qt6::Core zelf).
