@@ -21,6 +21,14 @@
   binaries aanwezig (`steamdeckmsx` 813K + `openmsx` 10,8M), 19 C-BIOS-ROM's in
   systemroms/, C-BIOS machine-XML's, volledige share-tree; `openmsx --version` draait
   in de sandbox → "openMSX 21.0, components ALSAMIDI CORE GL LASERDISC"
+- **BUG-015 (geel):** bundle zonder `--runtime-repo` → Deck kon org.kde.Platform//6.7
+  niet vinden; runtime-repo=flathub ingebakken + buildscript vastgelegd
+  (`deploy/run-build-hc55.sh`)
+- **BUG-016 (geel):** app-launch was op ALLE platforms kapot (v0.2.x smoke was
+  tests-only): custom `closed()`-signaal botste met Popup (Qt 6.7 hard error) +
+  core-types uit static lib registreerden onbetrouwbaar → core is nu eigen
+  QML-module `SteamDeckMSX.Core` met `IMPORTS` in de app-module; offscreen-launch
+  (`QT_QPA_PLATFORM=offscreen`) toegevoegd als vast smoke-gate
 - **Nog open (Deck):** echte install + Gaming Mode + C-BIOS-boot + Nemesis-download-flow
   op de Steam Deck zelf
 
