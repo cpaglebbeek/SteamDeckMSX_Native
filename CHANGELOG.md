@@ -29,8 +29,24 @@
   core-types uit static lib registreerden onbetrouwbaar → core is nu eigen
   QML-module `SteamDeckMSX.Core` met `IMPORTS` in de app-module; offscreen-launch
   (`QT_QPA_PLATFORM=offscreen`) toegevoegd als vast smoke-gate
-- **Nog open (Deck):** echte install + Gaming Mode + C-BIOS-boot + Nemesis-download-flow
-  op de Steam Deck zelf
+- **BUNDLE-VERIFICATIE GROEN (25-7 20:28, HC55):** de herbouwde bundle mét BUG-016-fix is
+  als distributie-artefact end-to-end geverifieerd — niet de dev-build maar de `.flatpak`
+  zelf, schoon geherinstalleerd:
+  1. `flatpak install --user` groen (na geforceerde uninstall, zodat écht het nieuwe
+     artefact getest wordt en niet stilzwijgend de vorige install)
+  2. **app-launch offscreen: 20s stabiel, nul output** — BUG-016 hiermee bewezen opgelost
+     in het gedistribueerde artefact, niet alleen op Mac
+  3. **C-BIOS 0.29 boot in de sandbox** (screenshot) — bewijst de BUG-012/BUG-004-keten
+     (volledige share-tree + OPENMSX_SYSTEM_DATA + locator-layout) werkend op runtime
+  4. **Cartridge end-to-end**: nemesis2.rom → Konami-logo (t=7s) → intro-cutscene (t=18s)
+     — volledige emulatiepijplijn binnen Flatpak, inclusief mapper-detectie
+  Bewijs-screenshots: `docs/verification/v0.2.1/`. Gate vastgelegd als herbruikbaar script
+  `deploy/verify-flatpak-hc55.sh` (4 stappen, elk fataal) — directe invulling van de
+  BUG-016-les dat "smoke groen" een echte app-launch moet bevatten.
+- **Nog open (Deck):** echte install + Gaming Mode + gamepad/Steam Input + de
+  Nemesis-URL-download-flow via de UI op de Steam Deck zelf. Emulatiekern en app-start
+  zijn nu op x86_64-Linux bewezen; wat op de Deck rest is hardware- en sessie-specifiek
+  (input, GPU-renderer, Gaming Mode-integratie).
 
 ## v0.2.1-KingsValley (2026-07-24) — Mac smoke-test + compile-fixes: v0.2.0 bouwt voor het eerst (groen)
 
