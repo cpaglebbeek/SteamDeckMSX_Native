@@ -1,5 +1,29 @@
 # CHANGELOG — SteamDeckMSX_Native
 
+## v0.2.1-KingsValley — update 2026-07-25: EERSTE GESLAAGDE FLATPAK-BUILD (HC55)
+
+> Na 5 gefaalde builds op de Deck + debugronde 24-7: `SteamDeckMSX-v0.2.1-KingsValley.flatpak`
+> (22 MB, x86_64) gebouwd op HC55 met flatpak-builder, KDE runtime 6.7.
+> Gehost op https://horsecloud55.ddns.net/steam/flatpak/ voor Deck-install.
+
+- **BUG-011 (geel) OPGELOST:** openMSX-probe in KDE-SDK-sandbox — Tcl 8.6.16-module +
+  GLEW 2.2.0-module + TCL_CONFIG/LIBRARY_PATH + GLEW-linkpad-fork-patch (RCA retroactief
+  in BUGLIST; fixes van 24-7 bevestigd werkend: volledige compile + link)
+- **BUG-012 (geel):** install-stap verwees naar `bindist/` (bestaat alleen bij `make
+  bindist`) → hele `share/.`-tree + `Contrib/cbios` (XML's→machines/, ROM's→systemroms/)
+  naar `/app/share/openmsx/`; finish-arg `--env=OPENMSX_SYSTEM_DATA=/app/share/openmsx`
+  (layout conform OpenmsxLocator kandidaat 2)
+- **BUG-013 (geel):** KDE-SDK 6.7 levert geen Qt6CorePrivate/GuiPrivate cmake-packages →
+  OPTIONAL_COMPONENTS + fallback op `<Module>_PRIVATE_INCLUDE_DIRS` (Mac-smoke 5/5 groen)
+- **BUG-014 (groen):** `--device=input` vereist flatpak ≥1.15.6; HC55 = 1.14.6 →
+  `--device=all`
+- **Sandbox-verificatie op HC55:** install-smoke via `flatpak install --user`; beide
+  binaries aanwezig (`steamdeckmsx` 813K + `openmsx` 10,8M), 19 C-BIOS-ROM's in
+  systemroms/, C-BIOS machine-XML's, volledige share-tree; `openmsx --version` draait
+  in de sandbox → "openMSX 21.0, components ALSAMIDI CORE GL LASERDISC"
+- **Nog open (Deck):** echte install + Gaming Mode + C-BIOS-boot + Nemesis-download-flow
+  op de Steam Deck zelf
+
 ## v0.2.1-KingsValley (2026-07-24) — Mac smoke-test + compile-fixes: v0.2.0 bouwt voor het eerst (groen)
 
 > v0.2.0-TreasureOfUsas was geleverd zónder build (4-agent + solo, per user-besluit).

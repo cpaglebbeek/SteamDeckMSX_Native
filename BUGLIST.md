@@ -10,17 +10,17 @@ _(geen tot v0.0.3-Mac-smoke-build is gevalideerd)_
 
 _(geen open bugs op v0.0.5-SolidSnake)_
 
-### BUG-014 (groen) — --device=input vereist flatpak ≥1.15.6 — v0.2.1-KingsValley 2026-07-25 [IN BEHANDELING]
+### BUG-014 (groen) — --device=input vereist flatpak ≥1.15.6 — v0.2.1-KingsValley 2026-07-25 ✅ OPGELOST (build groen 25-7)
 - **Functioneel:** build faalt in allerlaatste stap "Finishing app": `Unknown device type input, valid types are: dri, all, kvm, shm`.
 - **Technisch:** HC55 draait flatpak 1.14.6; het fijnmazige `--device=input` bestaat pas sinds 1.15.6. Fix: `--device=input` + `--device=dri` → `--device=all` (superset, overal ondersteund).
 - **Architectonisch:** finish-args worden door de bouwende flatpak-versie gevalideerd; manifest moet op de oudste ondersteunde flatpak (builder én SteamOS-runtime) mikken. P-SDM-06 (gamepad-passthrough) blijft gedekt via `all`.
 
-### BUG-013 (geel) — KDE-SDK 6.7 levert geen Qt6CorePrivate/GuiPrivate cmake-packages — v0.2.1-KingsValley 2026-07-25 [IN BEHANDELING]
+### BUG-013 (geel) — KDE-SDK 6.7 levert geen Qt6CorePrivate/GuiPrivate cmake-packages — v0.2.1-KingsValley 2026-07-25 ✅ OPGELOST (build groen 25-7)
 - **Functioneel:** steamdeckmsx-ui-module faalt op configure: `find_package(Qt6 REQUIRED COMPONENTS CorePrivate GuiPrivate)` → Qt6_FOUND=FALSE.
 - **Technisch:** de Flatpak-SDK bouwt Qt zónder de losse *Private cmake-packages; `qzipreader_p.h` zit er wél in (`/usr/include/QtCore/6.7.3/QtCore/private/`). Fix: private components via `OPTIONAL_COMPONENTS`, targets alleen linken als ze bestaan, anders fallback op `${Qt6Core_PRIVATE_INCLUDE_DIRS}` + `${Qt6Gui_PRIVATE_INCLUDE_DIRS}` (QZip-symbolen zitten in Qt6::Core zelf).
 - **Architectonisch:** zelfde wortel als BUG-009 — private-Qt-API-afhankelijkheid (QZipReader) is build-omgeving-fragiel; nu afgedekt voor beide varianten (los package vs alleen include-dirs). Mac-smoke na fix: 5/5 groen.
 
-### BUG-012 (geel) — Flatpak install-stap: bindist-pad bestaat niet — v0.2.1-KingsValley 2026-07-25 [IN BEHANDELING]
+### BUG-012 (geel) — Flatpak install-stap: bindist-pad bestaat niet — v0.2.1-KingsValley 2026-07-25 ✅ OPGELOST (build groen 25-7, sandbox-smoke geverifieerd)
 - **Functioneel:** openMSX compileert + linkt in de Flatpak-sandbox, maar module faalt op installeren van machine-XML's → geen bundle.
 - **Technisch:** manifest verwees naar `derived/*-linux-opt/bindist/share/machines/*.xml`; `bindist/` ontstaat alleen bij `make bindist`, wij draaien kale `make`. Bron staat in `share/` (hele tree) + `Contrib/cbios/` (C-BIOS XML's + ROM's).
 - **Architectonisch:** (1) handgerolde install kopieerde alleen machines+skins terwijl openMSX op runtime de héle share-tree nodig heeft (init.tcl, scripts/, settings.xml); (2) binary heeft DATADIR=/opt/openMSX/share hardcoded — Flatpak vergt `OPENMSX_SYSTEM_DATA`-override; (3) layout moet matchen met OpenmsxLocator kandidaat 2 (`/app/share/openmsx` met `machines/` direct eronder, BUG-004-fix).
