@@ -16,8 +16,8 @@
 # De groottecheck vangt het geval af waarin de download een nginx-foutpagina is:
 # `flatpak install` faalt daar cryptisch op.
 
-BUNDLE=SteamDeckMSX-v0.2.1-KingsValley.flatpak
-EXPECTED_SIZE=25181736
+BUNDLE=SteamDeckMSX-v0.3.0-MazeOfGalious.flatpak
+EXPECTED_SIZE=26561312
 URL="https://horsecloud55.ddns.net/steam/flatpak/$BUNDLE"
 
 cd ~/Downloads || exit 1
