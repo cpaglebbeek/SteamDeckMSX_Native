@@ -1,0 +1,189 @@
+#include "ThumbnailGenerator.h"
+#include "RomLibrary.h"
+
+#include <QDir>
+#include <QFileInfo>
+#include <QProcessEnvironment>
+#include <QTimer>
+#include <QVariantMap>
+
+ThumbnailGenerator::ThumbnailGenerator(QObject *parent)
+    : QObject(parent)
+    , m_proc(new QProcess(this))
+    , m_killTimer(new QTimer(this))
+{
+    m_killTimer->setSingleShot(true);
+    connect(m_killTimer, &QTimer::timeout, this, &ThumbnailGenerator::onTimeout);
+    connect(m_proc, &QProcess::finished, this, &ThumbnailGenerator::onFinished);
+}
+
+ThumbnailGenerator::~ThumbnailGenerator()
+{
+    if (m_proc->state() != QProcess::NotRunning) {
+        m_proc->kill();
+        m_proc->waitForFinished(2000);
+    }
+}
+
+QString ThumbnailGenerator::thumbnailPathFor(const QString &sha1Hex)
+{
+    return RomLibrary::thumbnailDir() + QChar('/') + sha1Hex.toLower() + QStringLiteral(".png");
+}
+
+void ThumbnailGenerator::setOpenmsxPath(const QString &p)
+{
+    if (p == m_openmsxPath) return;
+    m_openmsxPath = p;
+    emit openmsxPathChanged();
+}
+
+void ThumbnailGenerator::setDataPath(const QString &p)
+{
+    if (p == m_dataPath) return;
+    m_dataPath = p;
+    emit dataPathChanged();
+}
+
+void ThumbnailGenerator::setCaptureSeconds(int s)
+{
+    const int clamped = qBound(2, s, 60);
+    if (clamped == m_captureSeconds) return;
+    m_captureSeconds = clamped;
+    emit captureSecondsChanged();
+}
+
+void ThumbnailGenerator::setBusy(bool b)
+{
+    if (b == m_busy) return;
+    m_busy = b;
+    emit busyChanged();
+}
+
+void ThumbnailGenerator::enqueue(const QString &sha1Hex, const QString &romPath,
+                                 const QString &mediaType, const QString &machine)
+{
+    if (sha1Hex.isEmpty() || romPath.isEmpty()) return;
+    if (!QFileInfo::exists(romPath)) return;
+    // Al gemaakt in een eerdere sessie? Meteen melden, niet opnieuw booten.
+    const QString existing = thumbnailPathFor(sha1Hex);
+    if (QFileInfo::exists(existing)) {
+        emit thumbnailReady(sha1Hex, existing);
+        return;
+    }
+    for (const Job &j : std::as_const(m_queue)) {
+        if (j.sha1.compare(sha1Hex, Qt::CaseInsensitive) == 0) return;
+    }
+    m_queue.enqueue(Job{sha1Hex.toLower(), romPath, mediaType, machine});
+    emit pendingChanged();
+    if (!m_busy) startNext();
+}
+
+void ThumbnailGenerator::enqueueAll(const QVariantList &entries)
+{
+    for (const QVariant &v : entries) {
+        const QVariantMap m = v.toMap();
+        enqueue(m.value(QStringLiteral("sha1")).toString(),
+                m.value(QStringLiteral("romPath")).toString(),
+                m.value(QStringLiteral("mediaType")).toString(),
+                m.value(QStringLiteral("machine")).toString());
+    }
+}
+
+void ThumbnailGenerator::cancelAll()
+{
+    m_queue.clear();
+    emit pendingChanged();
+    if (m_proc->state() != QProcess::NotRunning) {
+        m_killTimer->stop();
+        m_proc->kill();
+    }
+    setBusy(false);
+}
+
+QStringList ThumbnailGenerator::argsFor(const Job &job, const QString &outPath) const
+{
+    QStringList args;
+    if (!job.machine.isEmpty()) {
+        // De heuristische machine kan fout zijn voor een enkele dump; C-BIOS
+        // MSX2+ draait vrijwel alles en is de enige BIOS die we mogen
+        // meeleveren (P-SDM-05).
+        args << QStringLiteral("-machine") << QStringLiteral("C-BIOS_MSX2+");
+    }
+    if (job.mediaType == QStringLiteral("dsk")) {
+        args << QStringLiteral("-diska") << job.romPath;
+    } else if (job.mediaType == QStringLiteral("cas")) {
+        args << QStringLiteral("-casa") << job.romPath;
+    } else {
+        args << QStringLiteral("-carta") << job.romPath;
+    }
+    // openMSX schrijft zelf de PNG en sluit daarna af. Pad tussen accolades
+    // zodat spaties in het pad de Tcl-parser niet breken.
+    args << QStringLiteral("-command")
+         << QStringLiteral("after time %1 {screenshot {%2} ; quit}")
+                .arg(m_captureSeconds)
+                .arg(outPath);
+    return args;
+}
+
+void ThumbnailGenerator::startNext()
+{
+    if (m_queue.isEmpty()) {
+        setBusy(false);
+        emit queueDrained();
+        return;
+    }
+    if (m_openmsxPath.isEmpty() || !QFileInfo::exists(m_openmsxPath)) {
+        const Job j = m_queue.dequeue();
+        emit pendingChanged();
+        emit thumbnailFailed(j.sha1, QStringLiteral("openMSX-pad onbekend"));
+        startNext();
+        return;
+    }
+
+    m_current    = m_queue.dequeue();
+    m_currentOut = thumbnailPathFor(m_current.sha1);
+    emit pendingChanged();
+    QDir().mkpath(QFileInfo(m_currentOut).absolutePath());
+
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    // Kern van de onzichtbaarheid: renderen zonder venster (zie header).
+    env.insert(QStringLiteral("SDL_VIDEODRIVER"), QStringLiteral("offscreen"));
+    env.insert(QStringLiteral("SDL_AUDIODRIVER"), QStringLiteral("dummy"));
+    env.remove(QStringLiteral("DISPLAY"));
+    env.remove(QStringLiteral("WAYLAND_DISPLAY"));
+    if (!m_dataPath.isEmpty()) {
+        env.insert(QStringLiteral("OPENMSX_SYSTEM_DATA"), m_dataPath);
+    }
+    m_proc->setProcessEnvironment(env);
+    m_proc->setProcessChannelMode(QProcess::MergedChannels);
+
+    setBusy(true);
+    m_killTimer->start(killTimeoutMs());
+    m_proc->start(m_openmsxPath, argsFor(m_current, m_currentOut));
+}
+
+void ThumbnailGenerator::onTimeout()
+{
+    if (m_proc->state() != QProcess::NotRunning) m_proc->kill();
+    // onFinished() volgt op de kill en handelt de rest af.
+}
+
+void ThumbnailGenerator::onFinished(int exitCode, QProcess::ExitStatus status)
+{
+    Q_UNUSED(exitCode);
+    Q_UNUSED(status);
+    m_killTimer->stop();
+
+    // Enige waarheid is of er een bruikbaar bestand staat: openMSX kan met
+    // exitcode 0 eindigen zonder screenshot (ROM die niet boot) én met een
+    // niet-nul code nádat de PNG al geschreven is.
+    const QFileInfo fi(m_currentOut);
+    if (fi.exists() && fi.size() > 0) {
+        ++m_generated;
+        emit generatedChanged();
+        emit thumbnailReady(m_current.sha1, m_currentOut);
+    } else {
+        emit thumbnailFailed(m_current.sha1, QStringLiteral("geen screenshot geproduceerd"));
+    }
+    startNext();
+}

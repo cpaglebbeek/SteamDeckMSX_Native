@@ -1,5 +1,57 @@
 # CHANGELOG — SteamDeckMSX_Native
 
+## v0.3.0-MazeOfGalious (2026-07-25) — ORANJE: galerij met alle lokale spellen
+
+> Tot nu toe moest elk spel handmatig geïmporteerd worden en toonde de app een
+> lijstje van maximaal 8 recente items. Vanaf nu scant de app bij elke start
+> alle lokale ROM-mappen en presenteert alles als tegelgalerij met echte
+> gamebeelden — Homebrew-Channel-stijl.
+
+- **RomLibrary** (`src/RomLibrary.{h,cc}`) — volledige bibliotheek naast de
+  bestaande recents-lijst. Scant `.rom/.dsk/.cas/.zip` recursief (max 6 niveaus
+  diep) in: eigen storage, Downloads, Documenten, `~/ROMs`, `~/roms`,
+  `~/Games/MSX`, `~/MSX` en op de Deck `/run/media/*` (SD-kaart).
+  - Scan loopt **incrementeel op de UI-thread** via een 0ms-timer, 24 bestanden
+    per tick. Bewust geen threads: geen races op het model, deterministisch
+    testbaar, en de UI blijft responsief.
+  - **SHA-1 alleen bij wijziging**: entries met ongewijzigde (mtime, size) komen
+    uit de JSON-cache, dus een rescan van een ongewijzigde map kost vrijwel niets.
+  - **Dedup op SHA-1** — dezelfde dump in twee mappen is één tegel.
+  - **Titel-opschoning**: `Nemesis 2 (1987)(Konami)[SCC].rom` → `Nemesis 2`.
+    Scene-dumps zijn anders onleesbaar op een tegel.
+  - Verdwenen bestanden worden bij het laden van de cache overgeslagen — een
+    tegel die niet start is erger dan een tegel die ontbreekt.
+- **ThumbnailGenerator** (`src/ThumbnailGenerator.{h,cc}`) — echte screenshots als
+  tegelbeeld. Start openMSX per ROM, laat 7s emuleren en laat de emulator zelf
+  via Tcl een PNG wegschrijven.
+  - **`SDL_VIDEODRIVER=offscreen`** is de kern: SDL rendert zonder venster terwijl
+    het screenshot-commando gewoon werkt. Empirisch vastgesteld op HC55 —
+    beeld identiek aan een run mét venster. Zonder deze driver flitst er per ROM
+    een venster op tijdens het bladeren.
+  - Strikt serieel (één emulator tegelijk) + kill-timeout per ROM, zodat één
+    ROM die niet boot de wachtrij niet blokkeert.
+  - Succes wordt afgemeten aan het PNG-bestand, niet aan de exitcode: openMSX
+    kan met code 0 eindigen zonder screenshot én met een fout nádat de PNG er al is.
+- **GameGrid.qml + GameTile.qml** — de galerij. Vier tegels per rij op 1280px,
+  focus door opschalen + gloeiende rand (geen selectiebalk), badge voor DSK/CAS,
+  en volledige knopnavigatie (dpad, L1/R1 per pagina, Home/End, A start).
+  Tegels zonder screenshot krijgen een uit de SHA-1 afgeleide kleurverloop met de
+  titel, zodat het grid tijdens de eerste scan nooit leeg of kapot oogt.
+- **Main.qml** — galerij vervangt de recents-lijst als hoofdweergave; nieuwe
+  sneltoetsen `O` (bestand openen) en `R` (opnieuw scannen); voortgangsindicator
+  voor scan en tegels in de header. De `S`-sneltoets leest nu benoemde velden via
+  `entryAt()` in plaats van harde rol-nummers (`Qt.UserRole + 2`), die stil
+  verschuiven zodra het model een rol krijgt.
+- **Flatpak finish-args** — `--filesystem=xdg-download:ro`, `xdg-documents:ro` en
+  `/run/media:ro`. Zonder deze rechten ziet de sandbox alleen zijn eigen storage
+  en blijft de galerij leeg. Bewust géén `--filesystem=home`.
+- **Tests**: `test_romlibrary` met 9 cases (extensie-filter, subdirectories,
+  dedup, titel-opschoning, mediatype, thumbnail-queue, behoud van thumbnails over
+  een rescan, lege map, niet-bestaande map). Suite: **6/6 groen**.
+- **Codenaam-drift voorkomen**: `STEAMDECKMSX_VERSION_CODENAME` is een CMake
+  *cache*-variabele — na de bump bleef de build `KingsValley` melden tot expliciet
+  herconfigureren. Dit is precies BUG-008; de app-launch-gate ving het.
+
 ## v0.2.1-KingsValley — update 2026-07-25: EERSTE GESLAAGDE FLATPAK-BUILD (HC55)
 
 > Na 5 gefaalde builds op de Deck + debugronde 24-7: `SteamDeckMSX-v0.2.1-KingsValley.flatpak`

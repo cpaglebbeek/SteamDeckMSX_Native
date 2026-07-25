@@ -29,3 +29,10 @@ add_executable(test_softwaredb test_softwaredb.cc)
 set_target_properties(test_softwaredb PROPERTIES AUTOMOC ON)
 target_link_libraries(test_softwaredb PRIVATE steamdeckmsx_core Qt6::Test)
 add_test(NAME softwaredb_smoke COMMAND test_softwaredb)
+
+# v0.3.0-MazeOfGalious — bibliotheek-scan: extensies, subdirs, dedup, titels,
+# en het behoud van thumbnails over een rescan heen.
+add_executable(test_romlibrary test_romlibrary.cc)
+set_target_properties(test_romlibrary PROPERTIES AUTOMOC ON)
+target_link_libraries(test_romlibrary PRIVATE steamdeckmsx_core Qt6::Test)
+add_test(NAME romlibrary_smoke COMMAND test_romlibrary)

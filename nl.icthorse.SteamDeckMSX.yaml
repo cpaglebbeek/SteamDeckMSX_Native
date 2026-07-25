@@ -27,6 +27,14 @@ finish-args:
   # (superset: dri + input + overige devices) als compatibele terugval (BUG-014).
   - --device=all
   - --persist=.var/app/nl.icthorse.SteamDeckMSX
+  # v0.3.0-MazeOfGalious: de bibliotheek scant lokale ROM-mappen. Zonder deze
+  # rechten ziet de sandbox alleen zijn eigen storage en blijft de galerij leeg.
+  # Read-only en beperkt tot de plekken waar ROMs realistisch staan — bewust
+  # geen --filesystem=home, want dat geeft toegang tot de hele home-map.
+  - --filesystem=xdg-download:ro
+  - --filesystem=xdg-documents:ro
+  # Steam Deck: SD-kaart en andere externe media.
+  - --filesystem=/run/media:ro
   # openmsx-binary heeft DATADIR=/opt/openMSX/share hardcoded (custom.mk);
   # env-override wijst naar de share-tree in de Flatpak-prefix (BUG-012).
   # Pad = /app/share/openmsx (machines/ direct eronder) — conform

@@ -87,6 +87,40 @@ ApplicationWindow {
         Component.onCompleted: loadBootstrapData()
     }
 
+    // v0.3.0-MazeOfGalious: de bibliotheek achter de galerij. Scant bij elke
+    // start opnieuw — een ROM die je er net in zette hoort er meteen te staan,
+    // zonder dat je iets hoeft te importeren.
+    RomLibrary {
+        id: library
+        Component.onCompleted: rescan()
+        onScanFinished: function(total, added) {
+            if (total === 0) {
+                toast.show(qsTr("Geen spellen gevonden — sleep bestanden hierheen"), "warning")
+            } else if (added > 0) {
+                toast.show(qsTr("Bibliotheek: ") + total + qsTr(" spellen (")
+                           + added + qsTr(" nieuw)"), "info")
+            }
+            // Ontbrekende tegels op de achtergrond aanvullen.
+            thumbs.enqueueAll(library.entriesWithoutThumbnail())
+        }
+    }
+
+    // v0.3.0-MazeOfGalious: screenshots als tegelbeeld. Draait headless
+    // (SDL offscreen) zodat er tijdens het bladeren geen venster opflitst.
+    ThumbnailGenerator {
+        id: thumbs
+        openmsxPath: OpenmsxLocator.found
+        dataPath: OpenmsxLocator.dataPath
+        onThumbnailReady: function(sha1, thumbPath) {
+            library.setThumbnail(sha1, thumbPath)
+        }
+        onQueueDrained: {
+            if (generated > 0) {
+                toast.show(qsTr("Tegels bijgewerkt: ") + generated, "info")
+            }
+        }
+    }
+
     // v0.2.0-TreasureOfUsas: ZIP-extract voor BIOS-sets.
     BiosZipExtractor {
         id: biosZipExtractor
@@ -264,8 +298,21 @@ ApplicationWindow {
 
                     // v0.1.0-Xanadu DD-010: hint-strip rechtsboven.
                     Text {
-                        text: qsTr("I · BIOS    U · URL-ROM    S · Slot")
+                        text: qsTr("O · open    R · scan    I · BIOS    U · URL    S · Slot")
                         color: Tokens.fgSecondary
+                        font.family: Tokens.fontFamilyMono
+                        font.pixelSize: Tokens.fontSizeLabel
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    // Voortgang van scan/tegels — anders lijkt het alsof er
+                    // niets gebeurt terwijl de emulator screenshots maakt.
+                    Text {
+                        visible: library.scanning || thumbs.busy
+                        text: library.scanning
+                              ? qsTr("scannen: ") + library.scannedFiles
+                              : qsTr("tegels: nog ") + thumbs.pending
+                        color: Tokens.accentWarm
                         font.family: Tokens.fontFamilyMono
                         font.pixelSize: Tokens.fontSizeLabel
                         anchors.verticalCenter: parent.verticalCenter
@@ -301,18 +348,18 @@ ApplicationWindow {
                 }
             }
 
-            // Cartridge browser (with recent + sentinel)
-            CartridgeBrowser {
+            // v0.3.0-MazeOfGalious: galerij van álle gevonden spellen.
+            GameGrid {
                 id: browser
-                model: cartridges
+                model: library
                 width: parent.width
                 height: parent.height - 240
                 focus: true
+                onRescanRequested: {
+                    toast.show(qsTr("Opnieuw scannen…"), "info")
+                    library.rescan()
+                }
                 onActivated: function(index, entry) {
-                    if (entry.isSentinel) {
-                        romPicker.open()
-                        return
-                    }
                     if (!entry.romPath || entry.romPath.length === 0) return
                     // v0.2.0-TreasureOfUsas: media-type-route.
                     const lower = entry.romPath.toLowerCase()
@@ -339,6 +386,9 @@ ApplicationWindow {
                         cartridges.addFromLocal(p, false)
                     }
                     toast.show(qsTr("Toegevoegd: ") + urls.length + qsTr(" bestand(en)"), "info")
+                    // Gesleepte bestanden landen in storage; opnieuw scannen
+                    // zet ze meteen als tegel in de galerij.
+                    library.rescan()
                 }
             }
 
@@ -452,19 +502,36 @@ ApplicationWindow {
     Shortcut {
         sequences: ["S"]
         onActivated: {
-            // Open slot-picker voor huidige cartridge in browser.
+            // Slot-picker voor de tegel die nu focus heeft. entryAt() levert
+            // benoemde velden, dus geen rol-nummers meer die stil verschuiven
+            // zodra het model een rol krijgt (les uit de oude browser-code).
             const idx = browser.currentIndex
-            const m = cartridges
-            if (idx < 0 || idx >= m.rowCount()) return
-            const isSentinel = m.data(m.index(idx, 0), Qt.UserRole + 4)
-            if (isSentinel) {
-                toast.show(qsTr("Selecteer eerst een cartridge"), "warning")
+            if (idx < 0 || idx >= library.count) {
+                toast.show(qsTr("Selecteer eerst een spel"), "warning")
                 return
             }
-            slotPicker.romPath  = m.data(m.index(idx, 0), Qt.UserRole + 2)
-            slotPicker.romTitle = m.data(m.index(idx, 0), Qt.UserRole + 1)
+            const entry = library.entryAt(idx)
+            if (!entry.romPath || entry.mediaType !== "rom") {
+                toast.show(qsTr("Slots gelden alleen voor cartridges"), "warning")
+                return
+            }
+            slotPicker.romPath  = entry.romPath
+            slotPicker.romTitle = entry.title
             slotPicker.open()
         }
+    }
+
+    // v0.3.0-MazeOfGalious: opnieuw scannen + bestand toevoegen.
+    Shortcut {
+        sequences: ["R"]
+        onActivated: {
+            toast.show(qsTr("Opnieuw scannen…"), "info")
+            library.rescan()
+        }
+    }
+    Shortcut {
+        sequences: ["O"]
+        onActivated: romPicker.open()
     }
 
     Shortcut { sequences: ["Escape", "B"]; onActivated: Qt.quit() }

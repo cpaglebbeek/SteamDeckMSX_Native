@@ -26,6 +26,11 @@ add_library(steamdeckmsx_core STATIC
     SoftwareDb.cc
     BiosZipExtractor.h
     BiosZipExtractor.cc
+    # v0.3.0-MazeOfGalious
+    RomLibrary.h
+    RomLibrary.cc
+    ThumbnailGenerator.h
+    ThumbnailGenerator.cc
 )
 set_target_properties(steamdeckmsx_core PROPERTIES AUTOMOC ON)
 target_include_directories(steamdeckmsx_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -96,6 +101,9 @@ qt_add_qml_module(steamdeckmsx_app
         qml/UrlImportDialog.qml
         qml/SlotPickerDialog.qml
         qml/BiosManagerScreen.qml
+        # v0.3.0-MazeOfGalious
+        qml/GameGrid.qml
+        qml/GameTile.qml
     RESOURCES
         assets/icons/dpad/up.svg
         assets/icons/dpad/down.svg
