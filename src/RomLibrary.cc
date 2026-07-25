@@ -81,9 +81,12 @@ QStringList RomLibrary::defaultScanRoots()
     QDir().mkpath(own);
     addIfExists(own);
 
-    // Gebruikersmappen die de Flatpak-sandbox via finish-args mag zien.
+    // Downloads: hier belanden ROMs in de praktijk.
+    // Documenten staat er bewust NIET bij: die map is bij de meeste mensen vol
+    // persoonlijke bestanden, en scannen levert vooral valse treffers op in
+    // plaats van spellen. Wie zijn collectie daar heeft staan, voegt de map
+    // zelf toe via addScanRoot().
     addIfExists(QStandardPaths::writableLocation(QStandardPaths::DownloadLocation));
-    addIfExists(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation));
 
     const QString home = QDir::homePath();
     for (const auto &sub : {"/ROMs", "/roms", "/Games/MSX", "/MSX"}) {
@@ -163,11 +166,30 @@ QHash<int, QByteArray> RomLibrary::roleNames() const
     };
 }
 
-bool RomLibrary::isSupported(const QString &fileName)
+bool RomLibrary::isSupported(const QString &path)
 {
-    const QString l = fileName.toLower();
-    return l.endsWith(QStringLiteral(".rom")) || l.endsWith(QStringLiteral(".dsk"))
-        || l.endsWith(QStringLiteral(".cas")) || l.endsWith(QStringLiteral(".zip"));
+    const QString l = path.toLower();
+    if (l.endsWith(QStringLiteral(".rom")) || l.endsWith(QStringLiteral(".dsk"))
+        || l.endsWith(QStringLiteral(".cas"))) {
+        return true;
+    }
+    // ZIP is bewust géén algemeen ondersteunde extensie. Een ZIP kán een ROM
+    // bevatten, maar in Downloads staan vooral archieven die niets met MSX te
+    // maken hebben — die vulden de galerij met documenten en dossiers (gemeten:
+    // 159 valse treffers op één machine). Alleen meenemen als de map zichzelf
+    // als ROM-map aankondigt.
+    if (!l.endsWith(QStringLiteral(".zip"))) return false;
+    // Uitsluitend de map waarin de zip *direct* staat telt. Hoger in het pad
+    // kijken is te grof: één bovenliggende map die toevallig "msx" bevat
+    // (bijvoorbeeld een tijdelijke map met de applicatienaam erin) zou dan élke
+    // zip eronder accepteren. Wie een verzameling dieper heeft staan, voegt die
+    // map zelf toe als scanroot.
+    const QStringList parts = path.left(path.lastIndexOf(QChar('/'))).split(QChar('/'),
+                                                                           Qt::SkipEmptyParts);
+    if (parts.isEmpty()) return false;
+    const QString parent = parts.last().toLower();
+    return parent.contains(QStringLiteral("rom")) || parent.contains(QStringLiteral("msx"))
+        || parent == QStringLiteral("games");
 }
 
 QString RomLibrary::titleFromFileName(const QString &fileName)
@@ -203,11 +225,22 @@ void RomLibrary::rescan()
     beginScan();
 }
 
+bool RomLibrary::shouldSkipDir(const QString &dirName)
+{
+    if (dirName.startsWith(QChar('.'))) return true;   // .git, .cache, .steam …
+    static const QStringList kSkip = {
+        QStringLiteral("node_modules"), QStringLiteral("Library"),
+        QStringLiteral("System"),       QStringLiteral("Applications"),
+        QStringLiteral("proc"),         QStringLiteral("sys"),
+    };
+    return kSkip.contains(dirName);
+}
+
 void RomLibrary::beginScan()
 {
-    m_pendingFiles.clear();
     m_scanResult.clear();
-    m_cursor = 0;
+    m_seenPaths.clear();
+    m_dirStack.clear();
     m_scannedFiles = 0;
     m_addedThisScan = 0;
 
@@ -216,22 +249,10 @@ void RomLibrary::beginScan()
     m_byPath.clear();
     for (const RomEntry &e : std::as_const(m_entries)) m_byPath.insert(e.romPath, e);
 
-    // QSet, geen QStringList: scanroots overlappen vaak (Downloads ligt onder
-    // Documents, /run/media bevat kopieën), en een lineaire contains() maakt
-    // het scannen van een grote collectie kwadratisch.
-    QSet<QString> seen;
+    // Alleen de roots op de stack: de boom wordt pas tijdens de ticks afgelopen.
     for (const QString &root : std::as_const(m_scanRoots)) {
         if (root.isEmpty() || !QFileInfo::exists(root)) continue;
-        const int rootDepth = root.count(QChar('/'));
-        QDirIterator it(root, QDir::Files | QDir::Readable, QDirIterator::Subdirectories);
-        while (it.hasNext()) {
-            const QString p = it.next();
-            if (!isSupported(p)) continue;
-            if (p.count(QChar('/')) - rootDepth > kMaxDepth) continue;
-            if (seen.contains(p)) continue;
-            seen.insert(p);
-            m_pendingFiles << p;
-        }
+        m_dirStack.append({root, 0});
     }
 
     m_scanning = true;
@@ -239,42 +260,66 @@ void RomLibrary::beginScan()
     m_tick->start();
 }
 
+void RomLibrary::processFile(const QString &path)
+{
+    ++m_scannedFiles;
+
+    QFileInfo fi(path);
+    const qint64 size  = fi.size();
+    const qint64 mtime = fi.lastModified().toSecsSinceEpoch();
+
+    RomEntry e;
+    const auto cached = m_byPath.constFind(path);
+    if (cached != m_byPath.constEnd() && cached->sizeBytes == size && cached->mtimeUnix == mtime) {
+        e = *cached;   // ongewijzigd: hergebruik hash + thumbnail
+    } else {
+        e.romPath   = path;
+        e.title     = titleFromFileName(fi.fileName());
+        e.mediaType = CartridgeModel::mediaTypeFor(path);
+        e.machine   = machineFor(fi.fileName(), size);
+        e.sizeBytes = size;
+        e.mtimeUnix = mtime;
+        e.sha1Hex   = sha1OfFile(path);
+        ++m_addedThisScan;
+    }
+    // Thumbnail kan in een eerdere sessie zijn gemaakt.
+    if (e.thumbPath.isEmpty() && !e.sha1Hex.isEmpty()) {
+        const QString candidate = thumbnailDir() + QChar('/') + e.sha1Hex + QStringLiteral(".png");
+        if (QFileInfo::exists(candidate)) e.thumbPath = candidate;
+    }
+    m_scanResult << e;
+}
+
 void RomLibrary::scanTick()
 {
-    int processed = 0;
-    while (m_cursor < m_pendingFiles.size() && processed < kFilesPerTick) {
-        const QString path = m_pendingFiles.at(m_cursor++);
-        ++processed;
-        ++m_scannedFiles;
-
-        QFileInfo fi(path);
-        const qint64 size  = fi.size();
-        const qint64 mtime = fi.lastModified().toSecsSinceEpoch();
-
-        RomEntry e;
-        const auto cached = m_byPath.constFind(path);
-        if (cached != m_byPath.constEnd() && cached->sizeBytes == size && cached->mtimeUnix == mtime) {
-            e = *cached;   // ongewijzigd: hergebruik hash + thumbnail
-        } else {
-            e.romPath   = path;
-            e.title     = titleFromFileName(fi.fileName());
-            e.mediaType = CartridgeModel::mediaTypeFor(path);
-            e.machine   = machineFor(fi.fileName(), size);
-            e.sizeBytes = size;
-            e.mtimeUnix = mtime;
-            e.sha1Hex   = sha1OfFile(path);
-            ++m_addedThisScan;
+    // Eén map per tick uitlezen, met een budget aan verwerkte bestanden. Zo
+    // blijft ook een boom met tienduizenden bestanden responsief: de scan
+    // vordert zichtbaar in plaats van de UI seconden vast te zetten.
+    int budget = kFilesPerTick;
+    while (budget > 0 && !m_dirStack.isEmpty()) {
+        const auto [dirPath, depth] = m_dirStack.takeLast();
+        QDir dir(dirPath);
+        const auto entries = dir.entryInfoList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot
+                                                   | QDir::Readable | QDir::NoSymLinks,
+                                               QDir::Name);
+        for (const QFileInfo &fi : entries) {
+            if (fi.isDir()) {
+                if (depth >= kMaxDepth) continue;
+                if (shouldSkipDir(fi.fileName())) continue;
+                m_dirStack.append({fi.absoluteFilePath(), depth + 1});
+                continue;
+            }
+            const QString p = fi.absoluteFilePath();
+            if (!isSupported(p)) continue;   // volledig pad: .zip telt alleen in ROM-mappen
+            if (m_seenPaths.contains(p)) continue;   // roots kunnen overlappen
+            m_seenPaths.insert(p);
+            processFile(p);
+            --budget;
         }
-        // Thumbnail kan in een eerdere sessie zijn gemaakt.
-        if (e.thumbPath.isEmpty() && !e.sha1Hex.isEmpty()) {
-            const QString candidate = thumbnailDir() + QChar('/') + e.sha1Hex + QStringLiteral(".png");
-            if (QFileInfo::exists(candidate)) e.thumbPath = candidate;
-        }
-        m_scanResult << e;
     }
 
     emit progressChanged();
-    if (m_cursor >= m_pendingFiles.size()) finishScan();
+    if (m_dirStack.isEmpty()) finishScan();
 }
 
 void RomLibrary::finishScan()

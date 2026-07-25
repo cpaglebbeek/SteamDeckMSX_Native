@@ -99,9 +99,16 @@ private:
     void beginScan();
     void scanTick();
     void finishScan();
+    void processFile(const QString &path);
     static QString titleFromFileName(const QString &fileName);
     static QString machineFor(const QString &fileName, qint64 sizeBytes);
-    static bool isSupported(const QString &fileName);
+    // Neemt het volledige pad, niet alleen de bestandsnaam: of een .zip meetelt
+    // hangt af van de map waarin hij staat.
+    static bool isSupported(const QString &path);
+    // Mappen die we nooit binnengaan: verborgen mappen, repo-interne mappen en
+    // systeemmappen. Zonder deze filter loopt een scan van Documenten dood in
+    // .git/node_modules-bomen.
+    static bool shouldSkipDir(const QString &dirName);
 
     // Per tick verwerkte bestanden. Klein genoeg om frames niet te missen,
     // groot genoeg om een map met honderden ROMs snel door te komen.
@@ -113,12 +120,13 @@ private:
     QStringList m_scanRoots;
     QTimer *m_tick{nullptr};
 
-    // Scan-state
-    QStringList m_pendingFiles;     // gevonden kandidaten, nog te verwerken
+    // Scan-state. De mappenboom wordt tijdens de scan afgelopen, niet vooraf:
+    // vooraf enumereren blokkeert de start seconden lang zodra een scanroot een
+    // grote boom is (Documenten met repo's erin).
+    QVector<QPair<QString, int>> m_dirStack;   // (map, diepte)
+    QSet<QString> m_seenPaths;
     QVector<RomEntry> m_scanResult;
     QHash<QString, RomEntry> m_byPath;   // cache van vorige scan (pad → entry)
-    QHash<QString, QString> m_thumbBySha1;
-    int m_cursor{0};
     int m_scannedFiles{0};
     int m_addedThisScan{0};
     bool m_scanning{false};

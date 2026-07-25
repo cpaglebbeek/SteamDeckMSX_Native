@@ -63,6 +63,57 @@ private slots:
         QCOMPARE(lib.rowCount(), 3);   // txt + png overgeslagen
     }
 
+    // Regressie: een eerste versie nam .zip overal mee en scande Documenten.
+    // Op een echte machine leverde dat 159 valse treffers op (dossiers,
+    // WeTransfer-bundels, screenshots) die als "spel" in de galerij stonden.
+    void ignoresZipOutsideRomFolders()
+    {
+        QTemporaryDir base;
+        QVERIFY(base.isValid());
+        // Expliciet in een submap met een neutrale naam: de tijdelijke map
+        // zelf draagt de applicatienaam, en die mag geen invloed hebben.
+        writeRom(base.filePath("Documenten/dossier.zip"), QByteArray(2048, 'Z'));
+        writeRom(base.filePath("Documenten/vakantiefotos.zip"), QByteArray(2048, 'Y'));
+        writeRom(base.filePath("Documenten/echtspel.rom"), QByteArray(2048, 'R'));
+
+        RomLibrary lib;
+        lib.setScanRoots({base.filePath("Documenten")});
+        QVERIFY(waitForScan(lib));
+
+        QCOMPARE(lib.rowCount(), 1);
+        QCOMPARE(lib.entryAt(0).value("title").toString(), QStringLiteral("echtspel"));
+    }
+
+    void acceptsZipInsideRomFolder()
+    {
+        QTemporaryDir base;
+        QVERIFY(base.isValid());
+        writeRom(base.filePath("MSX-roms/verzameling.zip"), QByteArray(2048, 'Z'));
+
+        RomLibrary lib;
+        lib.setScanRoots({base.path()});
+        QVERIFY(waitForScan(lib));
+        QCOMPARE(lib.rowCount(), 1);
+    }
+
+    void skipsHiddenAndHeavyDirectories()
+    {
+        QTemporaryDir base;
+        QVERIFY(base.isValid());
+        writeRom(base.filePath("zichtbaar.rom"), QByteArray(1024, 'A'));
+        writeRom(base.filePath(".git/objects/verstopt.rom"), QByteArray(1024, 'B'));
+        writeRom(base.filePath("node_modules/pakket/mee.rom"), QByteArray(1024, 'C'));
+
+        RomLibrary lib;
+        lib.setScanRoots({base.path()});
+        QVERIFY(waitForScan(lib));
+
+        // Alleen het zichtbare bestand; .git en node_modules worden overgeslagen
+        // omdat een scan daar anders in vastloopt.
+        QCOMPARE(lib.rowCount(), 1);
+        QCOMPARE(lib.entryAt(0).value("title").toString(), QStringLiteral("zichtbaar"));
+    }
+
     void findsRomsInSubdirectories()
     {
         QTemporaryDir roms;

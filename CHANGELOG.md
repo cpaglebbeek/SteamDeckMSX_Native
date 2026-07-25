@@ -52,6 +52,28 @@
   *cache*-variabele — na de bump bleef de build `KingsValley` melden tot expliciet
   herconfigureren. Dit is precies BUG-008; de app-launch-gate ving het.
 
+### Drie problemen die pas op een échte machine zichtbaar werden
+
+De eerste versie was groen op tests én sandbox, maar viel om zodra hij op een
+gewone werkmachine met echte mappen draaide. Alle drie zijn opgelost en met
+regressietests vastgelegd (`test_romlibrary`, nu 14 cases):
+
+1. **Scan blokkeerde de start (45s)** — de mappenboom werd volledig geënumereerd
+   vóór de eerste tick, dus de incrementele verwerking hielp niets. Bij een
+   scanroot met een grote boom (Documenten met repo's) stond de app seconden
+   stil. Nu wordt de boom *tijdens* de ticks afgelopen via een dir-stack.
+2. **Zware mappen liepen de scan dood** — `.git`, `node_modules`, `Library` en
+   verborgen mappen worden overgeslagen. Scan van dezelfde machine: **45s → 5s**.
+3. **159 valse treffers uit Documenten** — `.zip` gold overal als speelbaar
+   bestand, waardoor juridische dossiers, WeTransfer-bundels en screenshots als
+   "spel" in de galerij verschenen. Nu: Documenten staat niet meer in de
+   standaard scanroots (privacy + ruis), en een `.zip` telt alleen mee als de map
+   waarin hij *direct* staat zich als ROM-map aankondigt (naam bevat `rom`/`msx`,
+   of heet `games`). Bewust alleen de directe map: één bovenliggende map die
+   toevallig "msx" bevat zou anders élke zip eronder accepteren — dat gebeurde
+   letterlijk in de test, waar de tijdelijke map de applicatienaam draagt.
+   Resultaat op dezelfde machine: **159 → 4 treffers**, allemaal echte ROMs.
+
 ## v0.2.1-KingsValley — update 2026-07-25: EERSTE GESLAAGDE FLATPAK-BUILD (HC55)
 
 > Na 5 gefaalde builds op de Deck + debugronde 24-7: `SteamDeckMSX-v0.2.1-KingsValley.flatpak`
