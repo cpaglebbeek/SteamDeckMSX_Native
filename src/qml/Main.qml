@@ -234,6 +234,20 @@ ApplicationWindow {
         }
     }
 
+    // v0.3.1: eigen map aanwijzen. Vangnet voor collecties die buiten de
+    // standaard scanmappen staan (externe schijf, ongebruikelijke locatie) —
+    // zonder dit is een lege galerij een doodlopende weg voor de gebruiker.
+    FolderDialog {
+        id: romFolderPicker
+        title: qsTr("Kies een map met MSX-spellen")
+        onAccepted: {
+            const dir = selectedFolder.toString().replace("file://", "")
+            library.addScanRoot(dir)
+            toast.show(qsTr("Map toegevoegd: ") + dir.split("/").pop(), "info")
+            library.rescan()
+        }
+    }
+
     FileDialog {
         id: romPicker
         title: qsTr("Selecteer een MSX-ROM, schijf of tape")
@@ -298,7 +312,7 @@ ApplicationWindow {
 
                     // v0.1.0-Xanadu DD-010: hint-strip rechtsboven.
                     Text {
-                        text: qsTr("O · open    R · scan    I · BIOS    U · URL    S · Slot")
+                        text: qsTr("O · open    M · map    R · scan    I · BIOS    U · URL    S · Slot")
                         color: Tokens.fgSecondary
                         font.family: Tokens.fontFamilyMono
                         font.pixelSize: Tokens.fontSizeLabel
@@ -355,10 +369,12 @@ ApplicationWindow {
                 width: parent.width
                 height: parent.height - 240
                 focus: true
+                searchedPaths: library.scanRoots
                 onRescanRequested: {
                     toast.show(qsTr("Opnieuw scannen…"), "info")
                     library.rescan()
                 }
+                onAddFolderRequested: romFolderPicker.open()
                 onActivated: function(index, entry) {
                     if (!entry.romPath || entry.romPath.length === 0) return
                     // v0.2.0-TreasureOfUsas: media-type-route.
@@ -532,6 +548,10 @@ ApplicationWindow {
     Shortcut {
         sequences: ["O"]
         onActivated: romPicker.open()
+    }
+    Shortcut {
+        sequences: ["M"]
+        onActivated: romFolderPicker.open()
     }
 
     Shortcut { sequences: ["Escape", "B"]; onActivated: Qt.quit() }

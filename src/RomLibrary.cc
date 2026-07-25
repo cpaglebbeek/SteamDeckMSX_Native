@@ -81,17 +81,17 @@ QStringList RomLibrary::defaultScanRoots()
     QDir().mkpath(own);
     addIfExists(own);
 
-    // Downloads: hier belanden ROMs in de praktijk.
-    // Documenten staat er bewust NIET bij: die map is bij de meeste mensen vol
-    // persoonlijke bestanden, en scannen levert vooral valse treffers op in
-    // plaats van spellen. Wie zijn collectie daar heeft staan, voegt de map
-    // zelf toe via addScanRoot().
-    addIfExists(QStandardPaths::writableLocation(QStandardPaths::DownloadLocation));
-
-    const QString home = QDir::homePath();
-    for (const auto &sub : {"/ROMs", "/roms", "/Games/MSX", "/MSX"}) {
-        addIfExists(home + QString::fromLatin1(sub));
-    }
+    // De home-map zelf, niet een lijstje vermoede submappen. Die aanpak faalde
+    // in v0.3.0: binnen de Flatpak-sandbox bestonden ~/ROMs en ~/Downloads
+    // domweg niet (alleen expliciet gemounte paden zijn zichtbaar), en op een
+    // systeem zonder XDG-user-dirs resolveert DownloadLocation naar niets. Het
+    // resultaat was een galerij die altijd leeg bleef, terwijl de scanner zelf
+    // prima werkte.
+    //
+    // De hele home aflopen kan nu veilig: alleen .rom/.dsk/.cas tellen mee,
+    // verborgen mappen en zware bomen worden overgeslagen, en er wordt niets
+    // geschreven.
+    addIfExists(QDir::homePath());
 
     // Steam Deck: SD-kaart en externe media.
     QDir media(QStringLiteral("/run/media"));
@@ -238,16 +238,21 @@ bool RomLibrary::shouldSkipDir(const QString &dirName)
 
 void RomLibrary::beginScan()
 {
-    m_scanResult.clear();
     m_seenPaths.clear();
+    m_seenKeys.clear();
     m_dirStack.clear();
+    m_pendingFiles.clear();
     m_scannedFiles = 0;
     m_addedThisScan = 0;
 
     // Bestaande entries als cache aanbieden, zodat ongewijzigde bestanden niet
     // opnieuw gehasht worden en gevonden thumbnails behouden blijven.
     m_byPath.clear();
-    for (const RomEntry &e : std::as_const(m_entries)) m_byPath.insert(e.romPath, e);
+    m_liveKeys.clear();
+    for (const RomEntry &e : std::as_const(m_entries)) {
+        m_byPath.insert(e.romPath, e);
+        m_liveKeys.insert(e.sha1Hex.isEmpty() ? e.romPath : e.sha1Hex);
+    }
 
     // Alleen de roots op de stack: de boom wordt pas tijdens de ticks afgelopen.
     for (const QString &root : std::as_const(m_scanRoots)) {
@@ -287,7 +292,26 @@ void RomLibrary::processFile(const QString &path)
         const QString candidate = thumbnailDir() + QChar('/') + e.sha1Hex + QStringLiteral(".png");
         if (QFileInfo::exists(candidate)) e.thumbPath = candidate;
     }
-    m_scanResult << e;
+
+    // Dezelfde dump in twee mappen is één spel.
+    const QString key = e.sha1Hex.isEmpty() ? e.romPath : e.sha1Hex;
+    m_seenKeys.insert(key);
+    if (m_liveKeys.contains(key)) return;   // staat al in de galerij
+    m_liveKeys.insert(key);
+
+    // Direct invoegen op de juiste (alfabetische) plek in plaats van pas aan het
+    // eind van de scan. Een scan van een hele home-map duurt tientallen
+    // seconden; alles tot het einde ophouden liet de galerij al die tijd leeg —
+    // niet te onderscheiden van "er is niets gevonden".
+    const auto pos = std::lower_bound(m_entries.begin(), m_entries.end(), e,
+                                      [](const RomEntry &a, const RomEntry &b) {
+                                          return a.title.compare(b.title, Qt::CaseInsensitive) < 0;
+                                      });
+    const int row = static_cast<int>(pos - m_entries.begin());
+    beginInsertRows({}, row, row);
+    m_entries.insert(pos, e);
+    endInsertRows();
+    emit countChanged();
 }
 
 void RomLibrary::scanTick()
@@ -296,7 +320,16 @@ void RomLibrary::scanTick()
     // blijft ook een boom met tienduizenden bestanden responsief: de scan
     // vordert zichtbaar in plaats van de UI seconden vast te zetten.
     int budget = kFilesPerTick;
-    while (budget > 0 && !m_dirStack.isEmpty()) {
+    while (budget > 0 && (!m_pendingFiles.isEmpty() || !m_dirStack.isEmpty())) {
+        // Eerst de wachtrij leegwerken. Het budget moet ook bínnen een map
+        // gelden: een MSX-collectie is vaak één map met duizenden ROMs, en die
+        // in één tick hashen zet de UI alsnog vast.
+        while (budget > 0 && !m_pendingFiles.isEmpty()) {
+            processFile(m_pendingFiles.takeLast());
+            --budget;
+        }
+        if (budget <= 0 || m_dirStack.isEmpty()) break;
+
         const auto [dirPath, depth] = m_dirStack.takeLast();
         QDir dir(dirPath);
         const auto entries = dir.entryInfoList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot
@@ -313,36 +346,30 @@ void RomLibrary::scanTick()
             if (!isSupported(p)) continue;   // volledig pad: .zip telt alleen in ROM-mappen
             if (m_seenPaths.contains(p)) continue;   // roots kunnen overlappen
             m_seenPaths.insert(p);
-            processFile(p);
-            --budget;
+            m_pendingFiles.append(p);
         }
     }
 
     emit progressChanged();
-    if (m_dirStack.isEmpty()) finishScan();
+    if (m_pendingFiles.isEmpty() && m_dirStack.isEmpty()) finishScan();
 }
 
 void RomLibrary::finishScan()
 {
     m_tick->stop();
 
-    // Dedup op SHA-1: dezelfde dump in twee mappen is één spel. Zonder hash
-    // (onleesbaar bestand) valt de entry terug op zijn pad als sleutel.
-    QVector<RomEntry> unique;
-    QSet<QString> seenKeys;
-    for (const RomEntry &e : std::as_const(m_scanResult)) {
+    // Entries zijn tijdens de scan al ingevoegd. Wat overblijft is opruimen:
+    // alles wat deze scan niet meer tegenkwam staat niet meer op schijf. Van
+    // achter naar voren, zodat rij-indexen tijdens het verwijderen kloppen.
+    for (int i = static_cast<int>(m_entries.size()) - 1; i >= 0; --i) {
+        const RomEntry &e = m_entries.at(i);
         const QString key = e.sha1Hex.isEmpty() ? e.romPath : e.sha1Hex;
-        if (seenKeys.contains(key)) continue;
-        seenKeys.insert(key);
-        unique << e;
+        if (m_seenKeys.contains(key)) continue;
+        beginRemoveRows({}, i, i);
+        m_entries.remove(i);
+        endRemoveRows();
+        m_liveKeys.remove(key);
     }
-    std::sort(unique.begin(), unique.end(), [](const RomEntry &a, const RomEntry &b) {
-        return a.title.compare(b.title, Qt::CaseInsensitive) < 0;
-    });
-
-    beginResetModel();
-    m_entries = unique;
-    endResetModel();
 
     m_scanning = false;
     emit scanningChanged();

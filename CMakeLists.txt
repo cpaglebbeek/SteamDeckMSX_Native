@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 
 project(SteamDeckMSX
-    VERSION 0.3.0
+    VERSION 0.3.1
     DESCRIPTION "SteamDeckMSX_Native — Qt6 Deck-UI rondom openMSX-fork"
     HOMEPAGE_URL "https://github.com/cpaglebbeek/SteamDeckMSX_Native"
     LANGUAGES CXX

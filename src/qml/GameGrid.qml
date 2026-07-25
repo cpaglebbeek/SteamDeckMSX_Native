@@ -13,6 +13,12 @@ GridView {
     signal activated(int index, var entry)
     signal filesDropped(var urls)
     signal rescanRequested()
+    signal addFolderRequested()
+
+    // Mappen waarin de laatste scan heeft gezocht. Staat in de lege staat, want
+    // "niets gevonden" zonder te tonen wáár is gezocht is niet te debuggen —
+    // precies het probleem dat v0.3.0 opleverde.
+    property var searchedPaths: []
 
     // Vier op een rij bij 1280px breed: groot genoeg om de screenshot te lezen,
     // klein genoeg om te bladeren zonder eindeloos scrollen.
@@ -82,11 +88,25 @@ GridView {
             width: parent.width
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
-            text: qsTr("Zet je ROM-, disk- of tapebestanden in Downloads of in een map ROMs, "
-                     + "of sleep ze hierheen. Druk op R · opnieuw scannen.")
+            text: qsTr("Zet je ROM-, disk- of tapebestanden ergens in je persoonlijke map "
+                     + "of op de SD-kaart, en druk op R om opnieuw te scannen. "
+                     + "Staat je collectie elders? Druk op M en wijs de map aan.")
             color: Tokens.fgSecondary
             font.family: Tokens.fontFamily
             font.pixelSize: Tokens.fontSizeBody
+        }
+
+        // Zonder deze lijst is "niets gevonden" niet te onderscheiden van
+        // "op de verkeerde plek gezocht".
+        Text {
+            width: parent.width
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WrapAnywhere
+            visible: grid.searchedPaths.length > 0
+            text: qsTr("Gezocht in: ") + grid.searchedPaths.join("  ·  ")
+            color: Tokens.fgDisabled
+            font.family: Tokens.fontFamilyMono
+            font.pixelSize: Tokens.fontSizeLabel
         }
     }
 
@@ -122,6 +142,9 @@ GridView {
             event.accepted = true
         } else if (event.key === Qt.Key_R) {
             grid.rescanRequested()
+            event.accepted = true
+        } else if (event.key === Qt.Key_M) {
+            grid.addFolderRequested()
             event.accepted = true
         } else if (event.key === Qt.Key_PageUp) {
             grid.currentIndex = Math.max(0, grid.currentIndex - grid.pageJump)

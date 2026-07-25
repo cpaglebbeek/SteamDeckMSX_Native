@@ -27,12 +27,18 @@ finish-args:
   # (superset: dri + input + overige devices) als compatibele terugval (BUG-014).
   - --device=all
   - --persist=.var/app/nl.icthorse.SteamDeckMSX
-  # v0.3.0-MazeOfGalious: de bibliotheek scant lokale ROM-mappen. Zonder deze
-  # rechten ziet de sandbox alleen zijn eigen storage en blijft de galerij leeg.
-  # Read-only en beperkt tot de plekken waar ROMs realistisch staan — bewust
-  # geen --filesystem=home, want dat geeft toegang tot de hele home-map.
-  - --filesystem=xdg-download:ro
-  - --filesystem=xdg-documents:ro
+  # v0.3.0-MazeOfGalious: de bibliotheek scant lokale ROM-mappen.
+  #
+  # v0.3.1: eerst stonden hier alleen xdg-download + xdg-documents. Dat leek
+  # netjes (zo min mogelijk rechten) maar maakte de functie stuk: binnen de
+  # sandbox is de home-map leeg op wat expliciet gemount is, dus ~/ROMs bestond
+  # simpelweg niet en de galerij bleef leeg. Bovendien resolveert xdg-download
+  # niet als de gebruiker geen XDG-user-dirs heeft — dan is er niets zichtbaar.
+  #
+  # Daarom read-only toegang tot de home-map: dat is ook wat andere
+  # emulator-frontends doen. Het blijft veilig omdat de scanner alleen
+  # .rom/.dsk/.cas leest, verborgen mappen overslaat, en niets schrijft.
+  - --filesystem=home:ro
   # Steam Deck: SD-kaart en andere externe media.
   - --filesystem=/run/media:ro
   # openmsx-binary heeft DATADIR=/opt/openMSX/share hardcoded (custom.mk);

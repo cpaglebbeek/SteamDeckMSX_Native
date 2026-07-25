@@ -121,3 +121,13 @@ Zie `Meta_Master/BUGS_GLOBAL.md`. Specifiek voor Native:
 ## Terugkerende patronen
 
 _(in te vullen vanaf eerste echte bugs in v0.0.3/v0.0.4)_
+
+### BUG-017 (geel) — galerij blijft leeg: sandbox ziet de scanmappen niet — v0.3.1-MazeOfGalious 2026-07-25 ✅ OPGELOST
+- **Functioneel:** melding gebruiker na Deck-install: "scan levert geen spellen op". De automatische scan bij opstarten liep wel, maar vond nooit iets.
+- **Technisch:** binnen de Flatpak-sandbox is de home-map leeg op wat expliciet gemount is. Geverifieerd met `flatpak run --command=ls` in de sandbox: `/root` bevatte alleen `.local` en `.var`; `~/ROMs` en `~/Downloads` bestonden er niet. `--filesystem=xdg-download:ro` bood geen soelaas — dat resolveert naar niets zonder XDG-user-dirs — en `/run/media` bestond ook niet. Alle scanroots faalden dus stil op `QFileInfo::exists()`. Fix: `--filesystem=home:ro` + de home-map zelf als scanroot.
+- **Architectonisch:** rechten zo krap mogelijk houden is goed, maar een functie die op het bestandssysteem leunt moet geverifieerd worden *binnen* de sandbox, niet ernaast. De v0.3.0-verificatie gaf `--filesystem=/root/Downloads:ro` handmatig mee bij `flatpak run` en testte daarmee een omgeving die de gebruiker nooit krijgt — de test bewees de scanner, niet het product. Tweede les: een lege staat moet tonen wáár gezocht is, anders is "niets gevonden" niet te onderscheiden van "verkeerde plek".
+
+### BUG-018 (geel) — tick-budget gold niet binnen één map — v0.3.1-MazeOfGalious 2026-07-25 ✅ OPGELOST (test)
+- **Functioneel:** de "incrementele" scan kon de UI alsnog seconden vastzetten.
+- **Technisch:** `scanTick()` controleerde het budget alleen tússen mappen; de lus over de bestanden in één map liep altijd volledig door en hashte ze allemaal. Bij een collectie in één map (het normale geval voor MSX-dumps: duizenden ROMs naast elkaar) is dat één tick met duizenden SHA-1-berekeningen. Fix: wachtrij die per tick wordt afgewerkt, budget geldt ook binnen een map.
+- **Architectonisch:** "incrementeel" moet op de duurste stap slaan, niet op de goedkoopste. Gevonden doordat een testcase met 80 bestanden in één map faalde op de assertie dat rijen vóór `scanFinished` binnenkomen — zonder die test was het pas op een echte collectie opgevallen.

@@ -212,6 +212,57 @@ private slots:
         QCOMPARE(lib.entryAt(0).value("thumbPath").toString(), QStringLiteral("/tmp/nep-thumb.png"));
     }
 
+    // v0.3.1: entries verschijnen tijdens de scan. Een scan van een hele
+    // home-map duurt tientallen seconden; alles ophouden tot het einde liet de
+    // galerij al die tijd leeg — voor de gebruiker niet te onderscheiden van
+    // "er is niets gevonden".
+    void insertsEntriesDuringScanNotOnlyAtTheEnd()
+    {
+        // Ruim boven het tick-budget, én allemaal in ÉÉN map: een MSX-collectie
+        // is vaak precies dat. Een eerdere versie hield het budget alleen
+        // tússen mappen aan en hashte zo een hele map in één tick — dan
+        // blokkeert de UI alsnog en verschijnt alles pas aan het eind.
+        QTemporaryDir roms;
+        QVERIFY(roms.isValid());
+        for (int i = 0; i < 80; ++i) {
+            writeRom(roms.filePath(QStringLiteral("spel%1.rom").arg(i, 3, 10, QChar('0'))),
+                     QByteArray(512, static_cast<char>('A' + (i % 26))) + QByteArray::number(i));
+        }
+
+        RomLibrary lib;
+        lib.setScanRoots({roms.path()});
+
+        QSignalSpy inserted(&lib, &RomLibrary::rowsInserted);
+        QSignalSpy finished(&lib, &RomLibrary::scanFinished);
+        lib.rescan();
+        // Rijen moeten al binnenkomen vóórdat de scan klaar is.
+        QVERIFY(inserted.wait(5000));
+        QCOMPARE(finished.count(), 0);
+        QVERIFY(lib.rowCount() > 0);
+
+        QVERIFY(finished.wait(15000));
+        QCOMPARE(lib.rowCount(), 80);
+    }
+
+    void rescanRemovesEntriesWhoseFileDisappeared()
+    {
+        QTemporaryDir roms;
+        QVERIFY(roms.isValid());
+        writeRom(roms.filePath("blijft.rom"), QByteArray(1024, 'A'));
+        writeRom(roms.filePath("verdwijnt.rom"), QByteArray(1024, 'B'));
+
+        RomLibrary lib;
+        lib.setScanRoots({roms.path()});
+        QVERIFY(waitForScan(lib));
+        QCOMPARE(lib.rowCount(), 2);
+
+        QVERIFY(QFile::remove(roms.filePath("verdwijnt.rom")));
+        QVERIFY(waitForScan(lib));
+
+        QCOMPARE(lib.rowCount(), 1);
+        QCOMPARE(lib.entryAt(0).value("title").toString(), QStringLiteral("blijft"));
+    }
+
     void emptyRootYieldsEmptyModelWithoutHanging()
     {
         QTemporaryDir empty;

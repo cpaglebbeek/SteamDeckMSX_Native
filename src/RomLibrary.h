@@ -124,8 +124,13 @@ private:
     // vooraf enumereren blokkeert de start seconden lang zodra een scanroot een
     // grote boom is (Documenten met repo's erin).
     QVector<QPair<QString, int>> m_dirStack;   // (map, diepte)
+    QStringList m_pendingFiles;                // gevonden, nog te hashen
     QSet<QString> m_seenPaths;
-    QVector<RomEntry> m_scanResult;
+    // Sleutels (sha1, of pad als er geen hash is) die deze scan heeft gezien.
+    // Entries die aan het eind ontbreken, zijn van schijf verdwenen.
+    QSet<QString> m_seenKeys;
+    // Sleutels die al in m_entries zitten — O(1)-check bij het invoegen.
+    QSet<QString> m_liveKeys;
     QHash<QString, RomEntry> m_byPath;   // cache van vorige scan (pad → entry)
     int m_scannedFiles{0};
     int m_addedThisScan{0};

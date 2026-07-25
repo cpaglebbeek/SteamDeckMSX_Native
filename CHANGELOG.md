@@ -1,5 +1,40 @@
 # CHANGELOG — SteamDeckMSX_Native
 
+## v0.3.1-MazeOfGalious (2026-07-25) — de galerij bleef leeg op de Deck
+
+> Melding van de gebruiker: "scan levert geen spellen op". De scanner werkte,
+> maar zocht in mappen die binnen de Flatpak-sandbox niet bestaan.
+
+- **Oorzaak (bevestigd, niet vermoed):** in de sandbox is de home-map leeg op wat
+  expliciet gemount is. `ls /root` binnen de sandbox toonde alleen `.local` en
+  `.var` — `~/ROMs` en `~/Downloads` bestonden er domweg niet. Ook
+  `--filesystem=xdg-download:ro` hielp niet: dat resolveert naar niets op een
+  systeem zonder XDG-user-dirs, en `/run/media` bestond evenmin. Elke scanroot
+  faalde dus stil op `QFileInfo::exists()`, en de galerij bleef per definitie leeg
+  terwijl de scanner zelf correct werkte.
+- **Fix:** `--filesystem=home:ro` (vervangt xdg-download/xdg-documents) en de
+  home-map zelf als scanroot in plaats van een lijstje vermoede submappen. Read-only,
+  en veilig omdat de scanner alleen `.rom/.dsk/.cas` leest, verborgen en zware
+  mappen overslaat en niets schrijft. Dit is ook wat andere emulator-frontends doen.
+- **Tegels verschijnen nu tijdens de scan** in plaats van pas aan het eind. Een
+  home-scan duurt tientallen seconden; alles ophouden tot `finishScan()` liet de
+  galerij al die tijd leeg — voor de gebruiker niet te onderscheiden van "er is
+  niets gevonden". Entries worden nu direct op hun alfabetische plek ingevoegd,
+  en aan het eind wordt alleen nog opgeruimd wat van schijf verdwenen is. Bijwerking:
+  geen lege galerij meer tijdens een rescan.
+- **Tick-budget gold niet binnen een map** (gevonden door een nieuwe test): de
+  lus controleerde het budget alleen tússen mappen en hashte zo een complete map
+  in één tick. Een MSX-collectie is vaak precies dat — één map met duizenden
+  ROMs — dus de UI blokkeerde alsnog. Er is nu een wachtrij die het budget ook
+  binnen een map respecteert.
+- **Zelf een map aanwijzen**: sneltoets `M` opent een mapkiezer die de map als
+  scanroot toevoegt en meteen opnieuw scant. Vangnet voor collecties op
+  ongebruikelijke locaties.
+- **De lege staat toont nu in welke mappen is gezocht.** Zonder dat is "niets
+  gevonden" niet te onderscheiden van "op de verkeerde plek gezocht" — precies
+  waarom deze bug pas op de Deck aan het licht kwam.
+- Scan van dezelfde home-map: **21s → 12s**. Tests: **16 cases**, suite 6/6 groen.
+
 ## v0.3.0-MazeOfGalious (2026-07-25) — ORANJE: galerij met alle lokale spellen
 
 > Tot nu toe moest elk spel handmatig geïmporteerd worden en toonde de app een
