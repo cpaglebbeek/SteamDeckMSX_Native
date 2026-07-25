@@ -142,6 +142,21 @@ _(in te vullen vanaf eerste echte bugs in v0.0.3/v0.0.4)_
 - **Technisch:** `-DSTEAMDECKMSX_VERSION_CODENAME=KingsValley` stond hard in het Flatpak-manifest en overrulede daarmee de waarde uit `CMakeLists.txt`. Fix: de optie verwijderd; CMakeLists is de enige bron. Geverifieerd met `strings` op de binary in de geïnstalleerde bundle: `0.3.2-MazeOfGalious`.
 - **Architectonisch:** herhaling van BUG-008 (versie/codenaam-drift) op een tweede plek. De les van toen — bump op één plek — hield geen stand omdat het manifest een eigen kopie van dezelfde waarde had. Een waarde die in twee bestanden staat, loopt uiteen; het manifest hoort de buildconfiguratie niet te dupliceren.
 
+### BUG-022 (ROOD, OPEN) — spel "start" maar er is geen beeld op de Deck — gemeld 2026-07-25
+- **Functioneel:** een spel kiezen toont de melding "Start: <titel>", maar daarna is er niets te zien. De emulator lijkt te draaien; er verschijnt alleen geen beeld.
+- **Technisch (RCA):** de app koppelt openMSX als **los proces** (`STEAMDECKMSX_OPENMSX_LINK=subprocess`) en openMSX rendert in een **eigen venster**. `MsxCore::start()` geeft alleen `-control stdio`, `-machine` en `-carta` mee — géén `-fullscreen`, en de Qt-app blijft zelf op de voorgrond. Op een desktop met vensterbeheer valt dat niet op; op de Deck (zeker in Gaming Mode, waar één venster het scherm vult) blijft het openMSX-venster onzichtbaar achter de galerij.
+- **Waarom niet eerder gezien:** alle verificatie tot nu toe draaide headless (`QT_QPA_PLATFORM=offscreen` + `SDL_VIDEODRIVER=offscreen`) en toetste of openMSX *een screenshot produceerde* — precies de route die zonder zichtbaar venster werkt. De gate bewees dus dat de emulator draait, niet dat de gebruiker hem ziet.
+- **Voorgestelde fix (volgende sessie, in deze volgorde):**
+  1. `-fullscreen` meegeven in `MsxCore::start()` (openMSX-optie), zodat het emulatorvenster het scherm vult.
+  2. Het Qt-venster verbergen zolang de emulator draait (`hide()` bij `Running`, `show()` bij `Idle`/`Failed`) — anders vechten twee vensters om de voorgrond.
+  3. Verifiëren mét beeld: Xvfb op HC55 + screenshot van het scherm (niet van openMSX zelf), zodat wordt aangetoond dat het venster daadwerkelijk vooraan staat.
+- **Architectonisch:** de subprocess-koppeling maakt de emulator een eigen toepassing naast de UI. Zolang dat zo is, is "zichtbaarheid" een expliciete verantwoordelijkheid van deze app en geen vanzelfsprekendheid. Alternatief op termijn: insluiten van het beeld (embedded rendering), maar dat raakt de kernarchitectuur.
+
+### BUG-023 (geel, OPEN) — knoptoewijzing Deck nog niet logisch — gemeld 2026-07-25
+- **Functioneel:** de knoppen van de Steam Deck doen niet wat je verwacht in de galerij.
+- **Technisch:** er is nog geen Steam Input-preset; de app luistert op toetsenbordtoetsen (A/Enter = start, R = scan, M = map, O = openen, Y = stop, X = save-state, B/Esc = terug). Zonder preset stuurt de Deck standaard muis/joystick-signalen die daar niet op aansluiten.
+- **Voorgestelde fix:** controller-preset meeleveren (`presets/`, er staat al `msx-gamepad.vdf` in Stream_Client) en de knoptoewijzing documenteren op het scherm. Pas zinvol te testen ná BUG-022 — zonder beeld valt er niets te bedienen.
+
 ### BUG-021 (geel) — lege galerij op de Deck was geen bug in de scanner — v0.3.2-MazeOfGalious 2026-07-25 ✅ OPGELOST (startpakket)
 - **Functioneel:** "geen spellen gevonden, ook niet na rescan" op de Deck, terwijl dezelfde bundle op HC55 wél spellen vond.
 - **Technisch:** op de Deck stonden simpelweg geen losse `.rom/.dsk/.cas`-bestanden in de persoonlijke map; de ROM's stonden alleen op HC55 (`/var/lib/steamdeckmsx/roms/` en `/srv/steamweb/konami/`). De scan was correct, het resultaat leeg. Fix: `msx-startpakket.zip` naast de bundle gehost en de installatie pakt die uit in `~/ROMs` (uitpakken, niet de zip laten staan — een zip telt alleen mee in een map die zelf `rom`/`msx`/`games` heet).
