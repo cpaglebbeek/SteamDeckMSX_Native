@@ -377,6 +377,12 @@ ApplicationWindow {
                 onAddFolderRequested: romFolderPicker.open()
                 onActivated: function(index, entry) {
                     if (!entry.romPath || entry.romPath.length === 0) return
+                    // v0.3.2: start op de machine die bij dít spel hoort. Een
+                    // MSX1-titel op een MSX2+-machine start vaak niet of geeft
+                    // een afwijkend beeld; de keuze komt uit RomTypeDetector.
+                    if (entry.machineId && entry.machineId !== msxCore.currentMachine) {
+                        msxCore.currentMachine = entry.machineId
+                    }
                     // v0.2.0-TreasureOfUsas: media-type-route.
                     const lower = entry.romPath.toLowerCase()
                     if (lower.endsWith(".dsk")) {

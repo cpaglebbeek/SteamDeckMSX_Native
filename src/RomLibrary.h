@@ -23,7 +23,10 @@ class QTimer;
 struct RomEntry {
     QString title;       // filename-stem, opgeschoond
     QString romPath;     // absoluut pad
-    QString machine;     // MSX1/MSX2/MSX2+/TurboR (heuristiek + SoftwareDb)
+    QString machine;     // label voor de tegel: MSX1/MSX2/MSX2+/TurboR
+    // openMSX-machine om mee te starten (bv. "C-BIOS_MSX1"). Losgetrokken van
+    // het label: het label is voor de gebruiker, dit is voor de emulator.
+    QString machineId;
     QString mediaType;   // "rom" / "dsk" / "cas" / "zip"
     QString sha1Hex;     // fingerprint; leeg tot gehasht
     QString thumbPath;   // absoluut pad naar gecachete screenshot; leeg = nog geen
@@ -40,6 +43,7 @@ public:
         TitleRole = Qt::UserRole + 1,
         RomPathRole,
         MachineRole,
+        MachineIdRole,
         MediaTypeRole,
         Sha1Role,
         ThumbPathRole,
@@ -119,6 +123,9 @@ private:
     static constexpr int kFilesPerTick = 24;
     // Ondergrens tegen scannen van een hele home-map: max diepte vanaf root.
     static constexpr int kMaxDepth = 6;
+    // Boven deze grootte niet inlezen voor machinedetectie; ruim boven de
+    // grootste MSX-cartridge (4 MB), dus in de praktijk raakt niets dit plafond.
+    static constexpr qint64 kRomInspectMax = 8 * 1024 * 1024;
 
     QVector<RomEntry> m_entries;
     QStringList m_scanRoots;

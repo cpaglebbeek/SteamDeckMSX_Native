@@ -1,5 +1,6 @@
 #include "RomLibrary.h"
 #include "CartridgeModel.h"
+#include "RomTypeDetector.h"
 
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -143,6 +144,7 @@ QVariant RomLibrary::data(const QModelIndex &index, int role) const
     case TitleRole:     return e.title;
     case RomPathRole:   return e.romPath;
     case MachineRole:   return e.machine;
+    case MachineIdRole: return e.machineId;
     case MediaTypeRole: return e.mediaType;
     case Sha1Role:      return e.sha1Hex;
     case ThumbPathRole: return e.thumbPath;
@@ -158,6 +160,7 @@ QHash<int, QByteArray> RomLibrary::roleNames() const
         {TitleRole,     "title"},
         {RomPathRole,   "romPath"},
         {MachineRole,   "machine"},
+        {MachineIdRole, "machineId"},
         {MediaTypeRole, "mediaType"},
         {Sha1Role,      "sha1"},
         {ThumbPathRole, "thumbPath"},
@@ -310,10 +313,31 @@ void RomLibrary::processFile(const QString &path)
         e.romPath   = path;
         e.title     = titleFromFileName(fi.fileName());
         e.mediaType = CartridgeModel::mediaTypeFor(path);
-        e.machine   = machineFor(fi.fileName(), size);
         e.sizeBytes = size;
         e.mtimeUnix = mtime;
-        e.sha1Hex   = sha1OfFile(path);
+
+        if (e.mediaType == QStringLiteral("rom") && size > 0 && size <= kRomInspectMax) {
+            // Eén keer inlezen voor beide doelen: de hash én de machinekeuze.
+            // RomTypeDetector kijkt naar grootte en mapper-signaturen (SCC,
+            // ASCII8/16) en is daarmee betrouwbaarder dan raden op de
+            // bestandsnaam — die zegt bij scene-dumps vrijwel niets.
+            QFile f(path);
+            if (f.open(QIODevice::ReadOnly)) {
+                const QByteArray bytes = f.readAll();
+                const auto det = RomTypeDetector::detect(bytes);
+                e.sha1Hex   = RomTypeDetector::sha1Hex(bytes);
+                e.machineId = det.suggestedMachine;
+                e.machine   = RomTypeDetector::generationName(det.generation);
+                if (e.machine == QStringLiteral("Unknown")) e.machine = machineFor(fi.fileName(), size);
+            }
+        }
+        if (e.sha1Hex.isEmpty()) e.sha1Hex = sha1OfFile(path);
+        if (e.machine.isEmpty()) e.machine = machineFor(fi.fileName(), size);
+        if (e.machineId.isEmpty()) {
+            // Schijf en tape booten via een gewone machine; C-BIOS MSX2+ draait
+            // vrijwel alles en is de enige BIOS die we mogen meeleveren (P-SDM-05).
+            e.machineId = QStringLiteral("C-BIOS_MSX2+");
+        }
         ++m_addedThisScan;
     }
     // Thumbnail kan in een eerdere sessie zijn gemaakt.
@@ -434,6 +458,7 @@ QVariantList RomLibrary::entriesWithoutThumbnail(int max) const
         m.insert(QStringLiteral("mediaType"), e.mediaType);
         m.insert(QStringLiteral("title"), e.title);
         m.insert(QStringLiteral("machine"), e.machine);
+        m.insert(QStringLiteral("machineId"), e.machineId);
         out << m;
         if (out.size() >= max) break;
     }
@@ -448,6 +473,7 @@ QVariantMap RomLibrary::entryAt(int row) const
     m.insert(QStringLiteral("title"), e.title);
     m.insert(QStringLiteral("romPath"), e.romPath);
     m.insert(QStringLiteral("machine"), e.machine);
+    m.insert(QStringLiteral("machineId"), e.machineId);
     m.insert(QStringLiteral("mediaType"), e.mediaType);
     m.insert(QStringLiteral("sha1"), e.sha1Hex);
     m.insert(QStringLiteral("thumbPath"), e.thumbPath);
@@ -470,6 +496,7 @@ void RomLibrary::loadCache()
         e.title     = o.value(QStringLiteral("title")).toString();
         e.romPath   = o.value(QStringLiteral("romPath")).toString();
         e.machine   = o.value(QStringLiteral("machine")).toString();
+        e.machineId = o.value(QStringLiteral("machineId")).toString();
         e.mediaType = o.value(QStringLiteral("mediaType")).toString();
         e.sha1Hex   = o.value(QStringLiteral("sha1")).toString();
         e.thumbPath = o.value(QStringLiteral("thumbPath")).toString();
@@ -498,6 +525,7 @@ void RomLibrary::saveCache()
         o.insert(QStringLiteral("title"), e.title);
         o.insert(QStringLiteral("romPath"), e.romPath);
         o.insert(QStringLiteral("machine"), e.machine);
+        o.insert(QStringLiteral("machineId"), e.machineId);
         o.insert(QStringLiteral("mediaType"), e.mediaType);
         o.insert(QStringLiteral("sha1"), e.sha1Hex);
         o.insert(QStringLiteral("thumbPath"), e.thumbPath);

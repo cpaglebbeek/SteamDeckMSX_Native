@@ -149,6 +149,48 @@ private slots:
         QCOMPARE(lib.entryAt(0).value("title").toString(), QStringLiteral("echtspel"));
     }
 
+    // v0.3.2: de machine komt uit de ROM-inhoud (grootte/mapper), niet uit de
+    // bestandsnaam — bij scene-dumps zegt de naam vrijwel niets.
+    void picksMachinePerRomFromContent()
+    {
+        QTemporaryDir roms;
+        QVERIFY(roms.isValid());
+        // <=32KB zonder mapper -> MSX1
+        writeRom(roms.filePath("klein.rom"), QByteArray(16 * 1024, 'K'));
+        // >32KB -> MSX2
+        writeRom(roms.filePath("groot.rom"), QByteArray(128 * 1024, 'G'));
+
+        RomLibrary lib;
+        lib.setScanRoots({roms.path()});
+        QVERIFY(waitForScan(lib));
+        QCOMPARE(lib.rowCount(), 2);
+
+        QVariantMap klein, groot;
+        for (int i = 0; i < lib.rowCount(); ++i) {
+            const QVariantMap e = lib.entryAt(i);
+            if (e.value("title").toString() == QStringLiteral("klein")) klein = e;
+            if (e.value("title").toString() == QStringLiteral("groot")) groot = e;
+        }
+        QCOMPARE(klein.value("machine").toString(), QStringLiteral("MSX1"));
+        QCOMPARE(klein.value("machineId").toString(), QStringLiteral("C-BIOS_MSX1"));
+        QCOMPARE(groot.value("machine").toString(), QStringLiteral("MSX2"));
+        QCOMPARE(groot.value("machineId").toString(), QStringLiteral("C-BIOS_MSX2"));
+    }
+
+    // Schijf en tape hebben geen ROM-header om op te detecteren; die moeten een
+    // bruikbare machine meekrijgen in plaats van een lege waarde.
+    void diskAndTapeStillGetAMachine()
+    {
+        QTemporaryDir roms;
+        QVERIFY(roms.isValid());
+        writeRom(roms.filePath("floppy.dsk"), QByteArray(4096, 'D'));
+
+        RomLibrary lib;
+        lib.setScanRoots({roms.path()});
+        QVERIFY(waitForScan(lib));
+        QCOMPARE(lib.entryAt(0).value("machineId").toString(), QStringLiteral("C-BIOS_MSX2+"));
+    }
+
     void keepsDiskAndTapeImagesWithoutRomHeader()
     {
         // De headercheck geldt alleen voor .rom — een .dsk heeft er geen.

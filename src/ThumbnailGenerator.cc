@@ -82,10 +82,14 @@ void ThumbnailGenerator::enqueueAll(const QVariantList &entries)
 {
     for (const QVariant &v : entries) {
         const QVariantMap m = v.toMap();
+        // machineId is de openMSX-machine ("C-BIOS_MSX1"); `machine` is het
+        // label voor op de tegel ("MSX1") en zou als -machine niet werken.
+        QString machine = m.value(QStringLiteral("machineId")).toString();
+        if (machine.isEmpty()) machine = QStringLiteral("C-BIOS_MSX2+");
         enqueue(m.value(QStringLiteral("sha1")).toString(),
                 m.value(QStringLiteral("romPath")).toString(),
                 m.value(QStringLiteral("mediaType")).toString(),
-                m.value(QStringLiteral("machine")).toString());
+                machine);
     }
 }
 
@@ -103,12 +107,13 @@ void ThumbnailGenerator::cancelAll()
 QStringList ThumbnailGenerator::argsFor(const Job &job, const QString &outPath) const
 {
     QStringList args;
-    if (!job.machine.isEmpty()) {
-        // De heuristische machine kan fout zijn voor een enkele dump; C-BIOS
-        // MSX2+ draait vrijwel alles en is de enige BIOS die we mogen
-        // meeleveren (P-SDM-05).
-        args << QStringLiteral("-machine") << QStringLiteral("C-BIOS_MSX2+");
-    }
+    // v0.3.2: de machine komt uit RomTypeDetector (grootte + mapper-signatuur),
+    // niet meer altijd C-BIOS_MSX2+. Een MSX1-titel op een MSX2+-machine geeft
+    // regelmatig een zwart of afwijkend beeld — precies wat je niet als tegel
+    // wilt. Valt terug op MSX2+ als er geen keuze bekend is (P-SDM-05: alleen
+    // C-BIOS mag mee).
+    args << QStringLiteral("-machine")
+         << (job.machine.isEmpty() ? QStringLiteral("C-BIOS_MSX2+") : job.machine);
     if (job.mediaType == QStringLiteral("dsk")) {
         args << QStringLiteral("-diska") << job.romPath;
     } else if (job.mediaType == QStringLiteral("cas")) {
