@@ -54,10 +54,21 @@ if(NOT TARGET Qt6::CorePrivate AND NOT TARGET Qt6::GuiPrivate)
     target_link_libraries(steamdeckmsx_core PUBLIC Qt6::Gui)
 endif()
 
+# BUG-016: QML_ELEMENT-types in een gelinkte static lib registreren NIET
+# betrouwbaar mee in de qml-module van de app (Qt 6.7 Flatpak: geen enkele;
+# Qt 6.11 Mac: slechts een deel — app-launch was in v0.2.x stil kapot).
+# Canonieke fix: core-lib is zelf een QML-module; app-module importeert hem
+# (IMPORTS hieronder) zodat `import SteamDeckMSX` alle core-types blijft
+# leveren en nieuwe QML_ELEMENT-types automatisch mee-registreren.
+qt_add_qml_module(steamdeckmsx_core
+    URI SteamDeckMSX.Core
+    VERSION 1.0
+)
+
 qt_add_executable(steamdeckmsx_app
     main.cc
 )
-target_link_libraries(steamdeckmsx_app PRIVATE steamdeckmsx_core)
+target_link_libraries(steamdeckmsx_app PRIVATE steamdeckmsx_core steamdeckmsx_coreplugin)
 
 set_source_files_properties(qml/Tokens.qml PROPERTIES
     QT_QML_SINGLETON_TYPE TRUE
@@ -69,6 +80,7 @@ find_package(Qt6 REQUIRED COMPONENTS QuickDialogs2 Svg)
 qt_add_qml_module(steamdeckmsx_app
     URI SteamDeckMSX
     VERSION 1.0
+    IMPORTS SteamDeckMSX.Core
     QML_FILES
         qml/Tokens.qml
         qml/Main.qml

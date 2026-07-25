@@ -18,7 +18,8 @@ Popup {
     signal addFromZipClicked()       // v0.2.0
     signal removeBios(string id)
     signal filesDropped(var urls)    // v0.2.0
-    signal closed()  // user-close
+    // GEEN eigen 'signal closed()' — Popup heeft dat al; Qt 6.7 weigert de
+    // override hard ("Duplicate signal name", BUG-016). Popup.closed() volstaat.
 
     width: parent ? parent.width * 0.95 : 1200
     height: parent ? parent.height * 0.92 : 760
@@ -87,7 +88,7 @@ Popup {
             Button {
                 text: qsTr("Sluiten (B)")
                 width: 130; height: Tokens.minInteractive
-                onClicked: { scr.closed(); scr.close() }
+                onClicked: scr.close()
             }
         }
 
