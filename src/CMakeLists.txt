@@ -29,16 +29,30 @@ add_library(steamdeckmsx_core STATIC
 )
 set_target_properties(steamdeckmsx_core PROPERTIES AUTOMOC ON)
 target_include_directories(steamdeckmsx_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-# QZipReader private header: Qt ≤6.10 in GuiPrivate, Qt 6.11+ in CorePrivate
-# (BUG-009). Beide linken; include kiest via __has_include.
-find_package(Qt6 REQUIRED COMPONENTS CorePrivate GuiPrivate)
+# QZipReader private header: locatie wisselt per Qt-versie/-build (BUG-009);
+# include kiest via __has_include. KDE-Flatpak-SDK 6.7 levert GEEN
+# Qt6CorePrivate/Qt6GuiPrivate cmake-packages (BUG-013) — daarom optioneel
+# zoeken en anders terugvallen op <Module>_PRIVATE_INCLUDE_DIRS (header zit
+# daar in /usr/include/QtCore/<ver>/; QZip-symbolen zitten in Qt6::Core zelf).
+find_package(Qt6 REQUIRED COMPONENTS Gui OPTIONAL_COMPONENTS CorePrivate GuiPrivate)
 target_link_libraries(steamdeckmsx_core PUBLIC
     Qt6::Core
     Qt6::Qml
     Qt6::Network
-    Qt6::CorePrivate
-    Qt6::GuiPrivate
 )
+if(TARGET Qt6::CorePrivate)
+    target_link_libraries(steamdeckmsx_core PUBLIC Qt6::CorePrivate)
+endif()
+if(TARGET Qt6::GuiPrivate)
+    target_link_libraries(steamdeckmsx_core PUBLIC Qt6::GuiPrivate)
+endif()
+if(NOT TARGET Qt6::CorePrivate AND NOT TARGET Qt6::GuiPrivate)
+    target_include_directories(steamdeckmsx_core PUBLIC
+        ${Qt6Core_PRIVATE_INCLUDE_DIRS}
+        ${Qt6Gui_PRIVATE_INCLUDE_DIRS}
+    )
+    target_link_libraries(steamdeckmsx_core PUBLIC Qt6::Gui)
+endif()
 
 qt_add_executable(steamdeckmsx_app
     main.cc
