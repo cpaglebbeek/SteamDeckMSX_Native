@@ -9,3 +9,12 @@ if [ $ec -eq 0 ]; then
   echo "BUNDLE_OK $(ls -la SteamDeckMSX-v0.2.1-KingsValley.flatpak)" >> flatpak-build.log
 fi
 touch /root/sdmsx_build/BUILD_DONE
+
+# v0.3.1: publiceer + wijs de stabiele -latest-URL naar deze bundle.
+# Zonder deze stap breekt een eerder verstrekt installblok zodra de vorige
+# versie wordt opgeruimd (2026-07-25: "download mislukt" = 404 op de oude naam).
+if [ -f "$BUNDLE_NAME" ]; then
+  cp "$BUNDLE_NAME" /srv/steamweb/flatpak/ && \
+  ln -sfn "$BUNDLE_NAME" /srv/steamweb/flatpak/SteamDeckMSX-latest.flatpak && \
+  echo "PUBLISHED $BUNDLE_NAME + latest-symlink" >> flatpak-build.log
+fi
