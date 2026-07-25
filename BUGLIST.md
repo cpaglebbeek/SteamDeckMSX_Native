@@ -10,6 +10,11 @@ _(geen tot v0.0.3-Mac-smoke-build is gevalideerd)_
 
 _(geen open bugs op v0.0.5-SolidSnake)_
 
+### BUG-015 (geel) — bundle zonder --runtime-repo: Deck vindt org.kde.Platform//6.7 niet — v0.2.1-KingsValley 2026-07-25 ✅ OPGELOST (bundle herbouwd + workaround via clipboard)
+- **Functioneel:** eerste echte Deck-install (foto via ClaudeBug): `flatpak install --user` faalt met "vereist de runtime org.kde.Platform/x86_64/6.7, welke niet kon worden gevonden". Download (21,1 MB) + clipboard-flow werkten.
+- **Technisch:** `flatpak build-bundle` draaide zonder `--runtime-repo=` → de bundle bevat geen verwijzing naar een repo die de runtime kan leveren; de user-installatie op de Deck had geen (user-)flathub-remote voor 6.7. Fix: (a) workaround naar Deck gepusht via clipboard (remote-add flathub --user + expliciete runtime-install + bundle-install); (b) structureel: `--runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo` in build-bundle-stap, bundle herbouwd (cache warm) en opnieuw gehost.
+- **Architectonisch:** single-file-bundles zijn niet self-contained qua runtime; distributie-artefacten moeten runtime-herkomst-metadata meedragen. Buildscript stond bovendien alleen op HC55 (untracked) — nu vastgelegd als `deploy/run-build-hc55.sh` (vastleggings-protocol).
+
 ### BUG-014 (groen) — --device=input vereist flatpak ≥1.15.6 — v0.2.1-KingsValley 2026-07-25 ✅ OPGELOST (build groen 25-7)
 - **Functioneel:** build faalt in allerlaatste stap "Finishing app": `Unknown device type input, valid types are: dri, all, kvm, shm`.
 - **Technisch:** HC55 draait flatpak 1.14.6; het fijnmazige `--device=input` bestaat pas sinds 1.15.6. Fix: `--device=input` + `--device=dri` → `--device=all` (superset, overal ondersteund).
