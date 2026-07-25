@@ -10,7 +10,19 @@ _(geen tot v0.0.3-Mac-smoke-build is gevalideerd)_
 
 _(geen open bugs op v0.0.5-SolidSnake)_
 
+### BUG-012 (geel) — Flatpak install-stap: bindist-pad bestaat niet — v0.2.1-KingsValley 2026-07-25 [IN BEHANDELING]
+- **Functioneel:** openMSX compileert + linkt in de Flatpak-sandbox, maar module faalt op installeren van machine-XML's → geen bundle.
+- **Technisch:** manifest verwees naar `derived/*-linux-opt/bindist/share/machines/*.xml`; `bindist/` ontstaat alleen bij `make bindist`, wij draaien kale `make`. Bron staat in `share/` (hele tree) + `Contrib/cbios/` (C-BIOS XML's + ROM's).
+- **Architectonisch:** (1) handgerolde install kopieerde alleen machines+skins terwijl openMSX op runtime de héle share-tree nodig heeft (init.tcl, scripts/, settings.xml); (2) binary heeft DATADIR=/opt/openMSX/share hardcoded — Flatpak vergt `OPENMSX_SYSTEM_DATA`-override; (3) layout moet matchen met OpenmsxLocator kandidaat 2 (`/app/share/openmsx` met `machines/` direct eronder, BUG-004-fix).
+- **Fix:** manifest — volledige `share/.` → `/app/share/openmsx/`, Contrib/cbios XML's → `machines/` + ROM's → `systemroms/`, finish-arg `--env=OPENMSX_SYSTEM_DATA=/app/share/openmsx`.
+
 ## Opgelost
+
+### BUG-011 (geel) — Flatpak-build: openMSX-probe faalt in KDE-SDK-sandbox — v0.2.1-KingsValley 2026-07-24
+- **Functioneel:** 5 eerdere Flatpak-builds (op de Deck) + eerste HC55-pogingen faalden vóór of tijdens openMSX-compile.
+- **Technisch:** ketting van sandbox-gaten: (1) fd.o-runtime had geen Qt6 → org.kde.Platform 6.7; (2) KDE-SDK mist Tcl → eigen tcl 8.6.16-module + `TCL_CONFIG=/app/lib`; (3) KDE-SDK mist GLEW terwijl openMSX v21 `GL/glew.h` onvoorwaardelijk include't → glew 2.2.0-module + `GLEW_NO_GLU` (SDK mist GL/glu.h) + dev-symlinks; (4) probe linkt zonder `-L/app/lib` → `LIBRARY_PATH=/app/lib` + GLEW-linkpad als fork-patch in `build/libraries.py` (3RDPARTY_INSTALL_DIR=/app kaapte de SDL2/PNG-config-scripts); (5) sed-commando met ` #` werd door YAML als comment gekapt → quoting.
+- **Architectonisch:** openMSX' homemade probe-systeem kent geen pkg-config-prefix-injectie; Flatpak-prefix `/app` moet per kanaal (TCL_CONFIG, LIBRARY_PATH, fork-patch) worden aangereikt.
+- **Resultaat:** buildlog 2026-07-24 08:36 UTC: volledige compile + "Linking openmsx..." ✅ — faalt pas op install-stap (= BUG-012).
 
 ### BUG-009 (geel) — Qt 6.11: qzipreader_p.h verhuisd QtGui→QtCore — v0.2.1-KingsValley 2026-07-24
 - **Functioneel:** BiosZipExtractor.cc compileerde niet ("file not found") → hele core-lib + app onbuildbaar.

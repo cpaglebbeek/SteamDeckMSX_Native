@@ -25,6 +25,11 @@ finish-args:
   - --device=input
   - --device=dri
   - --persist=.var/app/nl.icthorse.SteamDeckMSX
+  # openmsx-binary heeft DATADIR=/opt/openMSX/share hardcoded (custom.mk);
+  # env-override wijst naar de share-tree in de Flatpak-prefix (BUG-012).
+  # Pad = /app/share/openmsx (machines/ direct eronder) — conform
+  # OpenmsxLocator::discoverDataPath() kandidaat 2 (BUG-004-fix).
+  - --env=OPENMSX_SYSTEM_DATA=/app/share/openmsx
 
 modules:
   # Tcl 8.6 — harde dependency van openMSX' emulation core; zit NIET in de
@@ -80,9 +85,15 @@ modules:
       # 3RDPARTY_INSTALL_DIR=/app bleek de SDL2/PNG-config-scripts te kapen (BUG-011).
       - make -j${FLATPAK_BUILDER_N_JOBS:-4} OPENMSX_TARGET_OS=linux
       - install -Dm755 derived/*-linux-opt/bin/openmsx ${FLATPAK_DEST}/bin/openmsx
-      # C-BIOS bundeling — open source MSX BIOS replacement (P-SDM-05)
-      - install -Dm644 -t ${FLATPAK_DEST}/share/openmsx/machines derived/*-linux-opt/bindist/share/machines/*.xml
-      - cp -r share/skins ${FLATPAK_DEST}/share/openmsx/skins
+      # Volledige share-tree (init.tcl, scripts/, machines/, settings.xml, …)
+      # direct onder /app/share/openmsx — bindist/ bestaat alleen bij 'make
+      # bindist', bron staat in share/; layout conform OpenmsxLocator (BUG-012).
+      - mkdir -p ${FLATPAK_DEST}/share/openmsx
+      - cp -r share/. ${FLATPAK_DEST}/share/openmsx/
+      # C-BIOS bundeling — open source MSX BIOS replacement (P-SDM-05);
+      # XML's + ROM's staan in Contrib/cbios (= wat INSTALL_CONTRIB=true doet).
+      - install -Dm644 -t ${FLATPAK_DEST}/share/openmsx/machines Contrib/cbios/*.xml
+      - install -Dm644 -t ${FLATPAK_DEST}/share/openmsx/systemroms Contrib/cbios/*.rom
     sources:
       - type: dir
         path: externals/openmsx
