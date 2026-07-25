@@ -131,7 +131,10 @@ modules:
       - -DSTEAMDECKMSX_TARGET=steamdeck
       - -DSTEAMDECKMSX_UI_TOOLKIT=qt6
       - -DSTEAMDECKMSX_OPENMSX_LINK=subprocess
-      - -DSTEAMDECKMSX_VERSION_CODENAME=KingsValley
+      # Codenaam NIET hier vastzetten: dan meldt de app een andere naam dan de
+      # bundel draagt zodra de versie opschuift (BUG-008, opnieuw geraakt bij
+      # v0.3.2 die zich als "KingsValley" presenteerde). CMakeLists.txt is de
+      # enige bron.
     sources:
       - type: dir
         path: .
