@@ -35,6 +35,9 @@ public:
     // v0.1.0-Xanadu: 2 cart slots — Tcl `carta`/`cartb`. slotARom == currentRom (alias).
     Q_PROPERTY(QString slotARom READ slotARom NOTIFY slotARomChanged)
     Q_PROPERTY(QString slotBRom READ slotBRom NOTIFY slotBRomChanged)
+    // BUG-022: openMSX rendert in een eigen venster; zonder fullscreen blijft dat
+    // achter de galerij hangen op een scherm dat één venster toont (Gaming Mode).
+    Q_PROPERTY(bool fullscreen READ fullscreen WRITE setFullscreen NOTIFY fullscreenChanged)
 
     explicit MsxCore(QObject *parent = nullptr);
 
@@ -52,6 +55,11 @@ public:
     // v0.1.0-Xanadu — slot accessors.
     QString slotARom() const { return m_slotARom; }
     QString slotBRom() const { return m_slotBRom; }
+    bool fullscreen() const { return m_fullscreen; }
+    void setFullscreen(bool on);
+    // Argumenten van de laatste spawn — maakt de fullscreen-keuze toetsbaar
+    // zonder een echte emulator te starten (BUG-022-gate).
+    QStringList lastStartArgs() const { return m_lastStartArgs; }
 
 public slots:
     void probeVersion();
@@ -87,6 +95,7 @@ signals:
     void currentMachineChanged();
     void slotARomChanged();
     void slotBRomChanged();
+    void fullscreenChanged();
     // Generic IPC signals
     void replyReceived(int commandId, bool ok, const QString &body);
     void stateUpdate(const QString &type, const QString &name, const QString &value);
@@ -115,6 +124,8 @@ private:
     QString m_slotARom{};
     QString m_slotBRom{};
     State m_state{Idle};
+    bool m_fullscreen{true};
+    QStringList m_lastStartArgs{};
 
     QProcess m_process;
     QXmlStreamReader m_xml;

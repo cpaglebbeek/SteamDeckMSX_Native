@@ -14,6 +14,11 @@ int main(int argc, char *argv[])
     app.setOrganizationDomain("icthorse.nl");
     app.setApplicationVersion(STEAMDECKMSX_VERSION);
 
+    // BUG-022: de galerij verbergt zichzelf terwijl de emulator speelt. Met de
+    // standaardinstelling zou dat het laatste venster sluiten en de app — en
+    // daarmee het openMSX-kindproces — meteen beëindigen.
+    app.setQuitOnLastWindowClosed(false);
+
     qInfo() << "SteamDeckMSX" << STEAMDECKMSX_VERSION
             << "target=" << STEAMDECKMSX_TARGET;
 

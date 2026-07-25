@@ -196,6 +196,45 @@ int main(int argc, char *argv[])
         EXPECT(stateSpy.count() >= 2);  // minimaal Booting → ... → Idle
     }
 
-    qInfo() << "All MsxCore smoke-tests OK (T1-T10)";
+    // T11: BUG-022 — start() geeft -fullscreen mee, met een quit-binding zodat
+    // de speler terugkan nu de galerij zich tijdens het spelen verbergt.
+    {
+        const QString script = makeMockScript(QStringLiteral("<openmsx-output>\n</openmsx-output>\n"));
+        MsxCore core;
+        core.setOpenmsxPath(script);
+        EXPECT(core.fullscreen());  // standaard aan
+        core.start(QStringLiteral("/tmp/nemesis2.rom"));
+        const QStringList args = core.lastStartArgs();
+        EXPECT(args.contains(QStringLiteral("-fullscreen")));
+        const int cmd = args.indexOf(QStringLiteral("-command"));
+        EXPECT(cmd >= 0 && cmd + 1 < args.size());
+        EXPECT(args.at(cmd + 1) == QStringLiteral("bind F12 quit"));
+        for (int i = 0; i < 50 && core.state() != MsxCore::Idle; ++i) {
+            QTest::qWait(100);
+        }
+    }
+
+    // T12: fullscreen uitzetten haalt beide vlaggen weg — de headless gates
+    // draaien zo, en dan hoort de galerij zichtbaar te blijven.
+    {
+        const QString script = makeMockScript(QStringLiteral("<openmsx-output>\n</openmsx-output>\n"));
+        MsxCore core;
+        core.setOpenmsxPath(script);
+        QSignalSpy fsSpy(&core, &MsxCore::fullscreenChanged);
+        core.setFullscreen(false);
+        EXPECT(fsSpy.count() == 1);
+        core.setFullscreen(false);
+        EXPECT(fsSpy.count() == 1);  // dedupe
+        core.start(QStringLiteral("/tmp/nemesis2.rom"));
+        const QStringList args = core.lastStartArgs();
+        EXPECT(!args.contains(QStringLiteral("-fullscreen")));
+        EXPECT(!args.contains(QStringLiteral("-command")));
+        EXPECT(args.contains(QStringLiteral("-carta")));
+        for (int i = 0; i < 50 && core.state() != MsxCore::Idle; ++i) {
+            QTest::qWait(100);
+        }
+    }
+
+    qInfo() << "All MsxCore smoke-tests OK (T1-T12)";
     return 0;
 }

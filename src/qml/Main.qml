@@ -12,6 +12,18 @@ ApplicationWindow {
     color: Tokens.bgBase
     title: qsTr("SteamDeckMSX")
 
+    function setGalleryVisible(on) {
+        if (on === root.visible)
+            return
+        if (on) {
+            root.show()
+            root.raise()
+            root.requestActivate()
+        } else {
+            root.hide()
+        }
+    }
+
     MsxCore {
         id: msxCore
         Component.onCompleted: {
@@ -31,6 +43,13 @@ ApplicationWindow {
             if (state === MsxCore.Running && !machines.loaded) {
                 machines.refresh()
             }
+            // BUG-022: de emulator opent een eigen fullscreen-venster. Twee
+            // vensters die om de voorgrond vechten leveren op de Deck een
+            // zwart scherm op, dus stapt de galerij opzij zolang er gespeeld
+            // wordt en komt terug zodra de emulator weg is.
+            root.setGalleryVisible(!(fullscreen &&
+                                     (state === MsxCore.Booting ||
+                                      state === MsxCore.Running)))
         }
         onLogMessage: function(level, message) {
             if (level === "warning" || level === "stderr") {
@@ -425,11 +444,15 @@ ApplicationWindow {
                     border.color: Tokens.borderSubtle
                     border.width: 1
                     radius: 4
-                    visible: msxCore.state === MsxCore.Running || msxCore.state === MsxCore.Booting
+                    // BUG-022: tijdens het spelen is dit venster verborgen, dus
+                    // moet de uitgang vóóraf te lezen zijn.
+                    visible: true
 
                     Text {
                         anchors.centerIn: parent
-                        text: qsTr("Y · Stop")
+                        text: msxCore.state === MsxCore.Running || msxCore.state === MsxCore.Booting
+                            ? qsTr("Y · Stop")
+                            : qsTr("F12 · terug uit spel")
                         color: Tokens.fgPrimary
                         font.family: Tokens.fontFamily
                         font.pixelSize: Tokens.fontSizeBody

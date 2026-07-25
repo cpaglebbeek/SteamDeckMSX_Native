@@ -26,6 +26,20 @@ MsxCore::MsxCore(QObject *parent)
     connect(&m_process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &MsxCore::onProcessFinished);
     connect(&m_process, &QProcess::errorOccurred, this, &MsxCore::onProcessError);
+
+    // BUG-022: fullscreen staat aan tenzij de omgeving het uitzet. Headless
+    // gates (SDL_VIDEODRIVER=offscreen) draaien met STEAMDECKMSX_FULLSCREEN=0.
+    const QByteArray fs = qgetenv("STEAMDECKMSX_FULLSCREEN");
+    if (fs == "0" || fs.toLower() == "false") {
+        m_fullscreen = false;
+    }
+}
+
+void MsxCore::setFullscreen(bool on)
+{
+    if (on == m_fullscreen) return;
+    m_fullscreen = on;
+    emit fullscreenChanged();
 }
 
 QString MsxCore::stateLabel() const
@@ -119,6 +133,15 @@ void MsxCore::start(const QString &romPath)
     if (!romPath.isEmpty()) {
         args << QStringLiteral("-carta") << romPath;
     }
+    if (m_fullscreen) {
+        // BUG-022: zonder dit blijft het emulatorvenster achter de galerij.
+        // openMSX kent géén -fullscreen-vlag; het is een Tcl-setting. De galerij
+        // is tijdens het spelen verborgen en vangt dus geen toetsen meer, dus
+        // legt dezelfde regel meteen een uitgang vast (zie BUG-023-preset).
+        args << QStringLiteral("-command")
+             << QStringLiteral("set fullscreen on ; bind F12 quit");
+    }
+    m_lastStartArgs = args;
 
     // BUG-004 fix: set OPENMSX_SYSTEM_DATA env so the bin finds machines/skins.
     if (!m_dataPath.isEmpty()) {
