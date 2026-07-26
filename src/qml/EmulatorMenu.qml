@@ -35,6 +35,15 @@ Popup {
     contentItem: Column {
         spacing: Tokens.space4
 
+        // Op het contentItem, niet op de Popup zelf: Keys is een attached
+        // property voor Items en een Popup is er geen — daar wordt hij
+        // stilzwijgend genegeerd ("Could not attach Keys property", BUG-027).
+        // Escape/B sluit het menu niet af maar hervat — anders zit je vast in
+        // een menu dat je niet weg kunt klikken zonder het spel te verlaten.
+        Keys.onPressed: function(e) {
+            if (e.key === Qt.Key_Escape) { root.resumeRequested(); e.accepted = true }
+        }
+
         Text {
             text: qsTr("Pauze")
             color: Tokens.fgPrimary
@@ -82,9 +91,4 @@ Popup {
         }
     }
 
-    // Escape/B sluit het menu niet af maar hervat — anders zit je vast in een
-    // menu dat je niet weg kunt klikken zonder het spel te verlaten.
-    Keys.onPressed: function(e) {
-        if (e.key === Qt.Key_Escape) { root.resumeRequested(); e.accepted = true }
-    }
 }

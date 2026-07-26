@@ -91,8 +91,13 @@ void ThumbnailGenerator::enqueue(const QString &sha1Hex, const QString &romPath,
     if (sha1Hex.isEmpty() || romPath.isEmpty()) return;
     if (!QFileInfo::exists(romPath)) return;
     // Al gemaakt in een eerdere sessie? Meteen melden, niet opnieuw booten.
+    // BUG-026: een thumbnail uit v0.3.x is één los beeld. Wie daarna een
+    // versie met animaties draait, hield dat ene beeld voor altijd — de
+    // cache-check keek naar het oude artefact, niet naar wat er nu nodig is.
+    // Bestaat de basis maar ontbreekt de frame-reeks: alsnog genereren.
     const QString existing = thumbnailPathFor(sha1Hex);
-    if (QFileInfo::exists(existing)) {
+    if (QFileInfo::exists(existing)
+        && (m_frameCount <= 1 || framesFor(sha1Hex).size() >= 2)) {
         emit thumbnailReady(sha1Hex, existing);
         return;
     }

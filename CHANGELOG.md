@@ -1,5 +1,43 @@
 # CHANGELOG — SteamDeckMSX_Native
 
+## v0.5.0-Goonies (2026-07-26) — startpaneel met twee slots + BIOS via URL op de Deck (oranje)
+
+> Twee gebruikerswensen van de Deck, direct na v0.4.1.
+
+- **Startpaneel (wijzigt DD-009):** een tegel activeren start niet meer meteen,
+  maar opent een paneel: slot A vooringevuld, slot B optioneel te vullen met een
+  tweede cartridge uit de bibliotheek (SCC/FM-PAC/combo's), focus op START —
+  twee keer klikken blijft dus spelen. Floppy/cassette starten direct zoals
+  voorheen.
+- **BIOS via URL op de Deck:** BIOS-beheer zat alleen achter sneltoets `I`; nu
+  een echte BIOS-knop in de galerij. De URL-dialoog bedient met het
+  schermtoetsenbord álle velden (URL/naam/inloggegevens) en groeit mee in
+  hoogte.
+- **Schermtoetsenbord v2:** shift-toggle (kleine letters standaard) en een
+  symboolrij (`: / . - _ = ? & ~ %`) — zonder die tekens was een URL niet te
+  typen.
+
+## v0.4.1-Quarth (2026-07-26) — drie Deck-meldingen, drie structurele lessen (geel)
+
+> Alle drie gemeld door de gebruiker op de Deck zelf, binnen een uur na de
+> v0.4.0-release — precies de klasse fouten die een schone verificatie-omgeving
+> niet ziet.
+
+- **BUG-026:** tegel-animaties verschenen nooit op een geüpgradede installatie —
+  de thumbnail-cache hield het oude v0.3.x-beeld voor afdoende. Regenereert nu
+  wanneer de frame-reeks ontbreekt.
+- **BUG-027:** `Keys` op een `Popup` wordt stilzwijgend genegeerd — pauzemenu en
+  zoekscherm luisterden niet naar Escape/B. Handlers naar `contentItem`;
+  ontbrekende `Tokens.fontSizeTitle` toegevoegd; de launch-gate grept nu ook op
+  `Unable to assign|Could not attach`.
+- **BUG-028:** online downloads (zips) werden als `<naam>.zip.rom` opgeslagen en
+  door de galerij terecht genegeerd. Extensies blijven behouden, zips worden
+  uitgepakt naar storage (hergebruikte extractor met instelbare whitelist/cap),
+  en bestaande spookbestanden worden eenmalig gemigreerd.
+- **Bediening:** schermtoetsenbord nu QWERTY; A–Z-letterbalk in het zoekscherm
+  (index alfabetisch gesorteerd) om zonder typen te bladeren; deploy toont de
+  aanbevolen Steam Input-indeling (BUG-023 blijft open tot hardware-test).
+
 ## v0.3.5-Pippols (2026-07-26) — de emulator mocht nergens schrijven
 
 > Gevonden op het verificatiebeeld van v0.3.3: over het spel heen stond een

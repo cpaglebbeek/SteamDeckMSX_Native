@@ -34,6 +34,7 @@ public:
     Q_PROPERTY(QString indexUrl READ indexUrl WRITE setIndexUrl NOTIFY indexUrlChanged)
     Q_PROPERTY(QString baseUrl READ baseUrl WRITE setBaseUrl NOTIFY baseUrlChanged)
     Q_PROPERTY(QString query READ query WRITE setQuery NOTIFY queryChanged)
+    Q_PROPERTY(QString letter READ letter WRITE setLetter NOTIFY letterChanged)
     Q_PROPERTY(QString folder READ folder WRITE setFolder NOTIFY folderChanged)
     Q_PROPERTY(bool loading READ loading NOTIFY loadingChanged)
     Q_PROPERTY(int total READ total NOTIFY totalChanged)          // in de index
@@ -52,6 +53,8 @@ public:
     void setBaseUrl(const QString &u);
     QString query() const { return m_query; }
     void setQuery(const QString &q);
+    QString letter() const { return m_letter; }
+    void setLetter(const QString &l);
     QString folder() const { return m_folder; }
     void setFolder(const QString &f);
     bool loading() const { return m_loading; }
@@ -69,6 +72,7 @@ signals:
     void indexUrlChanged();
     void baseUrlChanged();
     void queryChanged();
+    void letterChanged();
     void folderChanged();
     void loadingChanged();
     void totalChanged();
@@ -97,6 +101,7 @@ private:
     QString m_indexUrl;
     QString m_baseUrl;
     QString m_query;
+    QString m_letter;
     QString m_folder;
     QString m_status;
     bool m_loading{false};

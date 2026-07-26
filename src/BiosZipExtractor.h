@@ -33,8 +33,14 @@ public:
     // Hard cap totaal aantal files dat we accepteren uit één ZIP (anti-zip-bomb).
     static constexpr int kMaxFilesPerZip = 64;
 
+    // v0.4.1 (BUG-028): dezelfde extractie-motor dient nu ook de download-flow
+    // van spellen. De whitelist en de per-file-cap zijn daarom instelbaar;
+    // de defaults blijven exact het BIOS-gedrag van v0.2.0.
+    void setAllowedExtensions(const QStringList &lowercaseExts) { m_exts = lowercaseExts; }
+    void setPerFileMaxBytes(qint64 cap) { m_perFileMax = cap; }
+
 public slots:
-    // Extract alle valide BIOS-files uit zip naar destDir. Return aantal geslaagd.
+    // Extract alle valide files uit zip naar destDir. Return aantal geslaagd.
     // -1 bij parse-fout. fileNamesOut wordt gevuld met basenames van succesvolle extracties.
     Q_INVOKABLE int extractTo(const QString &zipPath, const QString &destDir, QStringList *fileNamesOut = nullptr);
 
@@ -42,4 +48,8 @@ signals:
     void fileExtracted(const QString &fileName);
     void skipped(const QString &fileName, const QString &reason);
     void parseError(const QString &reason);
+
+private:
+    QStringList m_exts{QStringLiteral("rom"), QStringLiteral("sys"), QStringLiteral("bin")};
+    qint64 m_perFileMax{kPerFileMaxBytes};
 };

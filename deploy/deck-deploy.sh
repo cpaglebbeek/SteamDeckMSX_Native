@@ -93,6 +93,13 @@ if [ "$FOUT" -eq 0 ]; then
   echo "KLAAR — start via Steam, of nu meteen met:"
   echo "  flatpak run $APP"
   echo "In de galerij: A/Enter = starten · R = opnieuw scannen · M = map aanwijzen · F12 = terug uit spel"
+  echo
+  echo "CONTROLLER (eenmalig, BUG-023): de app leest de sticks niet zelf — Steam"
+  echo "vertaalt ze. Zet in Gaming Mode bij dit spel de controller-indeling op"
+  echo "het sjabloon 'Toetsenbord (WASD) en muis' en pas aan:"
+  echo "  rechter stick = muis (Als muis)   · D-pad = pijltjestoetsen"
+  echo "  A = Enter · B = Escape · Y-knop = F12"
+  echo "Zonder deze indeling doet de galerij niets met de sticks."
 else
   echo "DEPLOY NIET COMPLEET — zie de !!-regels hierboven"
   exit 1

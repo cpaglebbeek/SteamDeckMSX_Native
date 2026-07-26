@@ -30,6 +30,7 @@ QtObject {
     readonly property string fontFamily:     "Noto Sans"
     readonly property string fontFamilyMono: "Noto Sans Mono"
     readonly property int   fontSizeDisplay: 32
+    readonly property int   fontSizeTitle:   24
     readonly property int   fontSizeBody:    18
     readonly property int   fontSizeLabel:   14
     readonly property int   fontSizeMono:    16

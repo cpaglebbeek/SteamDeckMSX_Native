@@ -1,4 +1,5 @@
 #include "CartridgeModel.h"
+#include "BiosZipExtractor.h"
 #include "FileDownloader.h"
 #include "RomTypeDetector.h"
 
@@ -8,6 +9,8 @@
 #include <QFileInfo>
 #include <QSettings>
 #include <QStandardPaths>
+
+#include <algorithm>
 
 namespace {
 constexpr auto kSettingsKey = "recents/cartridges";
@@ -45,6 +48,7 @@ CartridgeModel::CartridgeModel(QObject *parent)
     connect(m_downloader, &FileDownloader::failed,   this, &CartridgeModel::onDownloadFailed);
     connect(m_downloader, &FileDownloader::progress, this, &CartridgeModel::onDownloadProgress);
     load();
+    migrateZipRoms();
 }
 
 QString CartridgeModel::storageDir() const
@@ -60,7 +64,16 @@ QString CartridgeModel::resolveDestPath(const QString &preferredName, const QStr
     QString name = preferredName.isEmpty() ? fallbackBasename : preferredName;
     name = name.replace(QChar('/'), QChar('_')).replace(QChar('\\'), QChar('_'));
     if (name.isEmpty()) name = QStringLiteral("rom.rom");
-    if (!name.endsWith(QStringLiteral(".rom"), Qt::CaseInsensitive)) {
+    // BUG-028: hier werd blind ".rom" achter élke naam geplakt. Een download
+    // "spel.zip" werd zo "spel.zip.rom": een archief vermomd als cartridge,
+    // dat de galerij-headercheck terecht wegfiltert en openMSX niet boot.
+    // Bekende extensies blijven wat ze zijn; alleen extensieloos wordt .rom.
+    const QString lower = name.toLower();
+    const bool known = lower.endsWith(QStringLiteral(".rom"))
+        || lower.endsWith(QStringLiteral(".zip"))
+        || lower.endsWith(QStringLiteral(".dsk"))
+        || lower.endsWith(QStringLiteral(".cas"));
+    if (!known) {
         name += QStringLiteral(".rom");
     }
     return storageDir() + QChar('/') + name;
@@ -120,10 +133,68 @@ void CartridgeModel::addFromUrl(const QUrl &url, const QString &preferredName)
 void CartridgeModel::onDownloadFinished(const QString &destPath, const QString &sha1Hex)
 {
     Q_UNUSED(sha1Hex);
+    // BUG-028: online bronnen leveren vooral zips. Het archief zelf is geen
+    // spel — uitpakken naar storage en de inhoud registreren, zodat de
+    // galerij-scan echte .rom/.dsk/.cas-bestanden ziet.
+    if (destPath.endsWith(QStringLiteral(".zip"), Qt::CaseInsensitive)) {
+        QStringList names;
+        const int n = extractZipToStorage(destPath, &names);
+        QFile::remove(destPath);
+        setBusy(false);
+        if (n <= 0) {
+            emit downloadFailed(QStringLiteral("ZIP bevatte geen speelbaar bestand (.rom/.dsk/.cas)"));
+            return;
+        }
+        const QString first = storageDir() + QChar('/') + names.first();
+        emit downloadFinished(QFileInfo(first).completeBaseName(), first);
+        return;
+    }
     registerLocal(destPath, m_pendingSource);
     setBusy(false);
     QFileInfo fi(destPath);
     emit downloadFinished(fi.completeBaseName(), destPath);
+}
+
+int CartridgeModel::extractZipToStorage(const QString &zipPath, QStringList *namesOut)
+{
+    BiosZipExtractor zx;
+    zx.setAllowedExtensions({QStringLiteral("rom"), QStringLiteral("dsk"), QStringLiteral("cas")});
+    zx.setPerFileMaxBytes(kRomMaxBytes);
+    QStringList names;
+    const int n = zx.extractTo(zipPath, storageDir(), &names);
+    for (const QString &name : std::as_const(names)) {
+        registerLocal(storageDir() + QChar('/') + name, m_pendingSource);
+    }
+    if (namesOut) *namesOut = names;
+    return n;
+}
+
+void CartridgeModel::migrateZipRoms()
+{
+    // v0.4.0 sloeg online downloads op als "<naam>.zip.rom" (BUG-028): een
+    // archief met cartridge-extensie dat nergens werkte maar wel bleef staan.
+    // Eenmalig herstellen: terug-hernoemen naar .zip, uitpakken, archief weg.
+    const QDir dir(storageDir());
+    const QStringList ghosts = dir.entryList({QStringLiteral("*.zip.rom")}, QDir::Files);
+    for (const QString &ghost : ghosts) {
+        const QString oldPath = dir.filePath(ghost);
+        QString zipName = ghost;
+        zipName.chop(4);                    // ".rom" eraf → "<naam>.zip"
+        const QString zipPath = dir.filePath(zipName);
+        if (QFile::exists(zipPath)) QFile::remove(zipPath);
+        if (!QFile::rename(oldPath, zipPath)) continue;
+        extractZipToStorage(zipPath);
+        QFile::remove(zipPath);
+        // Het spookbestand kan als recent geregistreerd staan; opruimen.
+        const bool hadGhost = std::any_of(m_entries.cbegin(), m_entries.cend(),
+            [&](const CartridgeEntry &e) { return e.romPath == oldPath; });
+        if (hadGhost) {
+            beginResetModel();
+            m_entries.removeIf([&](const CartridgeEntry &e) { return e.romPath == oldPath; });
+            endResetModel();
+            persist();
+        }
+    }
 }
 
 void CartridgeModel::onDownloadFailed(const QString &reason)

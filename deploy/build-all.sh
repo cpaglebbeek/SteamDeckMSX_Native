@@ -53,8 +53,8 @@ QT_QPA_PLATFORM=offscreen ./build/native-debug/bin/steamdeckmsx >/tmp/sdmsx_run.
 pid=$!
 sleep 12
 if kill -0 $pid 2>/dev/null; then kill $pid 2>/dev/null; wait $pid 2>/dev/null; else fail "app stopte vroegtijdig: $(head -3 /tmp/sdmsx_run.log)"; fi
-if grep -qiE "is not a type|Cannot assign|SyntaxError" /tmp/sdmsx_run.log; then
-    grep -iE "is not a type|Cannot assign|SyntaxError" /tmp/sdmsx_run.log | head -3
+if grep -qiE "is not a type|Cannot assign|SyntaxError|Unable to assign|Could not attach" /tmp/sdmsx_run.log; then
+    grep -iE "is not a type|Cannot assign|SyntaxError|Unable to assign|Could not attach" /tmp/sdmsx_run.log | head -3
     fail "QML-fouten bij het starten"
 fi
 echo "   ok (12s stabiel, geen QML-fouten)"

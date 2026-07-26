@@ -5,20 +5,24 @@ import QtQuick
 // zit niet in de KDE-runtime van de Flatpak, en het toetsenbord van Steam komt
 // niet betrouwbaar over een niet-Steam-venster heen.
 //
-// Bewust klein gehouden: letters, cijfers, spatie en wissen. Voor het zoeken
-// naar een speltitel is dat genoeg, en elke extra rij maakt de weg naar een
-// letter langer.
+// v0.4.1: QWERTY in plaats van alfabetisch — letters zoek je op spiergeheugen.
+// v0.5.0: shift + symboolrij, zodat ook een URL te typen is (BIOS-import).
 Item {
     id: kb
 
     property string text: ""
+    // Zonder shift komen er kleine letters — zoeken is toch hoofdletter-
+    // ongevoelig en URLs zijn in de praktijk lowercase.
+    property bool shift: false
+    property string doneLabel: qsTr("zoek")
     signal accepted()
 
     readonly property var rows: [
-        "ABCDEFGHIJ".split(""),
-        "KLMNOPQRST".split(""),
-        "UVWXYZ0123".split(""),
-        "456789".split("")
+        "1234567890".split(""),
+        "QWERTYUIOP".split(""),
+        "ASDFGHJKL".split(""),
+        "ZXCVBNM".split(""),
+        [":", "/", ".", "-", "_", "=", "?", "&", "~", "%"]
     ]
 
     implicitHeight: grid.implicitHeight + Tokens.space4
@@ -32,13 +36,16 @@ Item {
             model: kb.rows
             Row {
                 spacing: Tokens.space2
+                anchors.horizontalCenter: parent.horizontalCenter
                 property int rowIndex: index
                 Repeater {
                     model: modelData
                     MenuButton {
+                        readonly property bool isLetter: modelData >= "A" && modelData <= "Z"
                         implicitWidth: Tokens.minInteractive
-                        label: modelData
-                        onClicked: kb.text += modelData
+                        label: isLetter && !kb.shift ? modelData.toLowerCase() : modelData
+                        onClicked: kb.text += (isLetter && !kb.shift)
+                            ? modelData.toLowerCase() : modelData
                     }
                 }
             }
@@ -46,6 +53,13 @@ Item {
 
         Row {
             spacing: Tokens.space2
+            anchors.horizontalCenter: parent.horizontalCenter
+            MenuButton {
+                implicitWidth: Tokens.minInteractive * 2
+                label: qsTr("⇧ ABC")
+                primary: kb.shift
+                onClicked: kb.shift = !kb.shift
+            }
             MenuButton {
                 implicitWidth: Tokens.minInteractive * 3
                 label: qsTr("spatie")
@@ -65,7 +79,7 @@ Item {
             }
             MenuButton {
                 implicitWidth: Tokens.minInteractive * 3
-                label: qsTr("zoek")
+                label: kb.doneLabel
                 primary: true
                 onClicked: kb.accepted()
             }

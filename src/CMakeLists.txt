@@ -109,6 +109,7 @@ qt_add_qml_module(steamdeckmsx_app
         # v0.4.0-Vampire — bedienbaar zonder toetsenbord
         qml/MenuButton.qml
         qml/EmulatorMenu.qml
+        qml/LaunchPanel.qml
         # v0.5.0-Quarth — online zoeken zonder toetsenbord
         qml/OnScreenKeyboard.qml
         qml/OnlineBrowser.qml

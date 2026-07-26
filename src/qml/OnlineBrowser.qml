@@ -34,6 +34,12 @@ Popup {
     contentItem: Column {
         spacing: Tokens.space3
 
+        // Op het contentItem, niet op de Popup: Keys attacht alleen aan Items
+        // en werd op de Popup stilzwijgend genegeerd (BUG-027).
+        Keys.onPressed: function(e) {
+            if (e.key === Qt.Key_Escape) { root.close(); e.accepted = true }
+        }
+
         Row {
             width: parent.width
             spacing: Tokens.space4
@@ -72,6 +78,50 @@ Popup {
                 color: kb.text.length > 0 ? Tokens.fgPrimary : Tokens.fgDisabled
                 font.family: Tokens.fontFamily
                 font.pixelSize: Tokens.fontSizeBody
+            }
+        }
+
+        // A–Z-balk: bladeren zonder typen. De index is alfabetisch gesorteerd,
+        // dus één letter kiezen toont aaneengesloten alles wat ermee begint —
+        // met de cursor (rechter stick) is dat sneller dan het toetsenbord
+        // voor wie de titel niet precies weet (gebruikersfeedback Deck, v0.4.1).
+        Row {
+            width: parent.width
+            spacing: 0
+
+            Repeater {
+                model: ["✕"].concat("ABCDEFGHIJKLMNOPQRSTUVWXYZ".split(""))
+                Rectangle {
+                    readonly property bool isReset: modelData === "✕"
+                    readonly property bool active: root.index
+                        && (isReset ? root.index.letter === "" && root.index.query === ""
+                                    : root.index.letter === modelData)
+                    width: (parent.width) / 27
+                    height: Tokens.minInteractive * 0.8
+                    radius: 4
+                    color: active ? Tokens.accentPrimary
+                         : letterHover.containsMouse ? Tokens.bgOverlay : "transparent"
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: modelData
+                        color: active ? Tokens.bgBase : Tokens.fgSecondary
+                        font.family: Tokens.fontFamilyMono
+                        font.pixelSize: Tokens.fontSizeLabel
+                        font.weight: active ? Font.Bold : Font.Normal
+                    }
+
+                    MouseArea {
+                        id: letterHover
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: {
+                            if (!root.index) return
+                            if (isReset) { root.index.letter = ""; root.index.query = ""; kb.text = "" }
+                            else { kb.text = ""; root.index.letter = modelData }
+                        }
+                    }
+                }
             }
         }
 
@@ -142,7 +192,4 @@ Popup {
         }
     }
 
-    Keys.onPressed: function(e) {
-        if (e.key === Qt.Key_Escape) { root.close(); e.accepted = true }
-    }
 }

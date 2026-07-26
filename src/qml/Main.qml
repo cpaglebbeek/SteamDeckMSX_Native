@@ -282,6 +282,23 @@ ApplicationWindow {
         }
     }
 
+    LaunchPanel {
+        id: launchPanel
+        parent: Overlay.overlay
+        romLibrary: library
+        onStartRequested: function(slotA, slotB) {
+            msxCore.start(slotA)
+            if (slotB && slotB.length > 0) {
+                // Zelfde volgorde als de bestaande slot-B-route: cartb direct
+                // na start werkt, wachten op Running is niet nodig.
+                msxCore.loadRomSlotB(slotB)
+                toast.show(qsTr("Start + slot B: ") + launchPanel.slotBTitle, "info")
+            } else {
+                toast.show(qsTr("Start: ") + launchPanel.gameTitle, "info")
+            }
+        }
+    }
+
     SlotPickerDialog {
         id: slotPicker
         runningState: msxCore.state === MsxCore.Running
@@ -430,6 +447,18 @@ ApplicationWindow {
                         hint: qsTr("O")
                         onClicked: romPicker.open()
                         KeyNavigation.left: onlineButton
+                        KeyNavigation.right: biosButton
+                    }
+
+                    // v0.5.0: BIOS-beheer zat alleen achter sneltoets I — op de
+                    // Deck onbereikbaar. Nu een echte knop, net als Zoeken.
+                    MenuButton {
+                        id: biosButton
+                        anchors.verticalCenter: parent.verticalCenter
+                        label: qsTr("BIOS")
+                        hint: qsTr("I")
+                        onClicked: biosScreen.open()
+                        KeyNavigation.left: openButton
                     }
 
                     Text {
@@ -519,8 +548,9 @@ ApplicationWindow {
                         msxCore.loadCas(entry.romPath)
                         toast.show(qsTr("Cassette: ") + entry.title, "info")
                     } else {
-                        msxCore.start(entry.romPath)
-                        toast.show(qsTr("Start: ") + entry.title, "info")
+                        // v0.5.0-Goonies: niet meer meteen starten (was DD-009)
+                        // maar eerst het startpaneel — slot A + optioneel B.
+                        launchPanel.openFor(entry.title, entry.romPath, entry.machine)
                     }
                 }
                 // v0.2.0: drag-and-drop op browser.

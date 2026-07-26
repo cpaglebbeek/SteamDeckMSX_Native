@@ -123,14 +123,12 @@ int BiosZipExtractor::extractTo(const QString &zipPath, const QString &destDir, 
         }
 
         const QString ext = lcExt(info.filePath);
-        if (ext != QStringLiteral("rom")
-            && ext != QStringLiteral("sys")
-            && ext != QStringLiteral("bin")) {
+        if (!m_exts.contains(ext)) {
             emit skipped(info.filePath, QStringLiteral("extensie niet ondersteund"));
             continue;
         }
 
-        if (info.size > kPerFileMaxBytes) {
+        if (info.size > m_perFileMax) {
             emit skipped(info.filePath, QStringLiteral("te groot"));
             continue;
         }
@@ -165,7 +163,7 @@ int BiosZipExtractor::extractTo(const QString &zipPath, const QString &destDir, 
 
         const QByteArray data = reader.fileData(info.filePath);
         // Defensief: na decompressie nogmaals cappen (header kan liegen).
-        if (data.size() > kPerFileMaxBytes) {
+        if (data.size() > m_perFileMax) {
             emit skipped(info.filePath, QStringLiteral("te groot"));
             continue;
         }

@@ -11,6 +11,8 @@
 #include <QUrl>
 #include <QDebug>
 
+#include <algorithm>
+
 namespace {
 // Alleen bestandstypen die de emulator ook echt kan laden; de index bevat
 // verder documentatie, torrents en installers die hier niets te zoeken hebben.
@@ -93,7 +95,26 @@ void OnlineIndex::setQuery(const QString &q)
 {
     if (q == m_query) return;
     m_query = q;
+    // Typen en de letterbalk zijn twee ingangen op hetzelfde filter; allebei
+    // tegelijk actief levert een lege lijst op die als "kapot" leest.
+    if (!q.trimmed().isEmpty() && !m_letter.isEmpty()) {
+        m_letter.clear();
+        emit letterChanged();
+    }
     emit queryChanged();
+    applyFilter();
+}
+
+void OnlineIndex::setLetter(const QString &l)
+{
+    const QString up = l.left(1).toUpper();
+    if (up == m_letter) return;
+    m_letter = up;
+    if (!m_letter.isEmpty() && !m_query.isEmpty()) {
+        m_query.clear();
+        emit queryChanged();
+    }
+    emit letterChanged();
     applyFilter();
 }
 
@@ -236,6 +257,12 @@ void OnlineIndex::parseIndex(const QByteArray &raw)
         if (!e.folder.isEmpty()) folders.insert(e.folder);
         m_all.append(e);
     }
+    // Alfabetisch op naam: de bron levert in map-volgorde, maar zowel de
+    // letterbalk als bladeren zonder zoekterm zijn alleen bruikbaar op een
+    // gesorteerde lijst (v0.4.1).
+    std::sort(m_all.begin(), m_all.end(), [](const Entry &a, const Entry &b) {
+        return QString::compare(a.name, b.name, Qt::CaseInsensitive) < 0;
+    });
     endResetModel();
 
     m_folders = folders.values();
@@ -255,6 +282,8 @@ void OnlineIndex::applyFilter()
         if (!m_folder.isEmpty() && !e.folder.startsWith(m_folder, Qt::CaseInsensitive))
             continue;
         if (!q.isEmpty() && !e.name.contains(q, Qt::CaseInsensitive))
+            continue;
+        if (!m_letter.isEmpty() && !e.name.startsWith(m_letter, Qt::CaseInsensitive))
             continue;
         m_view.append(i);
         // Een handheld toont er hooguit een paar tientallen; verder vullen kost

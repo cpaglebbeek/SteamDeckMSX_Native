@@ -123,9 +123,14 @@ echo "   galerij-inhoud: $gal_light heldere pixels"
 [[ "$gal_light" -gt 1000 ]] || fail "galerij is leeg/zwart ($gal_light) — Enter zou nergens op slaan"
 
 # Geen --sync: dat blokkeert onbeperkt als het venster niet activeerbaar is.
-echo "== spel starten (Enter, zoals de speler doet) =="
+echo "== spel starten (Enter → startpaneel → Enter, zoals de speler doet) =="
 timeout 10 env DISPLAY="$DISPLAY_NR" xdotool search --name "SteamDeckMSX" windowactivate 2>/dev/null
 sleep 2
+timeout 10 env DISPLAY="$DISPLAY_NR" xdotool key --clearmodifiers Return
+# v0.5.0 (wijziging DD-009): de eerste Enter opent het startpaneel met de
+# focus op START; de tweede Enter start echt. De gate volgt de spelersroute —
+# een gate die de oude één-Enter-route stuurt test een app die niet meer bestaat.
+sleep 3
 timeout 10 env DISPLAY="$DISPLAY_NR" xdotool key --clearmodifiers Return
 sleep 30                      # boot + C-BIOS + titelscherm
 shoot 02-spel.png

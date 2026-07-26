@@ -85,6 +85,11 @@ private:
     QString resolveDestPath(const QString &preferredName, const QString &fallbackBasename) const;
     void registerLocal(const QString &absPath, const QString &source);
     void setBusy(bool b);
+    // v0.4.1 (BUG-028): downloads kunnen zips zijn; uitpakken naar storage en
+    // de inhoud registreren. Return aantal uitgepakte spelbestanden.
+    int extractZipToStorage(const QString &zipPath, QStringList *namesOut = nullptr);
+    // Eenmalige opruiming van "*.zip.rom"-spookbestanden uit v0.4.0.
+    void migrateZipRoms();
 
     static constexpr int kMaxRecents = 8;
     QVector<CartridgeEntry> m_entries;

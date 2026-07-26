@@ -25,8 +25,9 @@ Popup {
     signal confirmed(string url, string name, string target, string user, string password)
     signal canceled()
 
+    // Geen vaste hoogte: sinds het schermtoetsenbord standaard uitgeklapt staat
+    // (v0.5.0) groeit de dialoog met de inhoud mee; 360 sneed hem af.
     width: 720
-    height: 360
     anchors.centerIn: Overlay.overlay
 
     background: Rectangle {
@@ -75,6 +76,7 @@ Popup {
                     radius: 4
                 }
                 enabled: !dlg.busy
+                onActiveFocusChanged: if (activeFocus) kbPanel.field = "url"
             }
         }
 
@@ -103,6 +105,7 @@ Popup {
                     radius: 4
                 }
                 enabled: !dlg.busy
+                onActiveFocusChanged: if (activeFocus) kbPanel.field = "name"
             }
         }
 
@@ -170,18 +173,29 @@ Popup {
             }
 
             // Schermtoetsenbord: op de Deck is er geen fysiek toetsenbord, dus
-            // zonder dit zijn deze velden daar niet in te vullen.
+            // zonder dit zijn deze velden daar niet in te vullen. Sinds v0.5.0
+            // bedient het álle velden (URL/naam/gebruiker/wachtwoord): het veld
+            // met focus is het doel, en bij het wisselen neemt het toetsenbord
+            // de bestaande veldinhoud over in plaats van die te overschrijven.
             Column {
                 id: kbPanel
-                visible: false
+                visible: true
                 width: parent.width
-                property string field: "pass"
+                property string field: "url"
+                onFieldChanged: credKb.text =
+                    field === "url"  ? urlField.text
+                  : field === "name" ? nameField.text
+                  : field === "user" ? userField.text
+                  : passField.text
 
                 OnScreenKeyboard {
                     id: credKb
                     width: parent.width
+                    doneLabel: qsTr("klaar")
                     onTextChanged: {
-                        if (kbPanel.field === "user") userField.text = text
+                        if (kbPanel.field === "url") urlField.text = text
+                        else if (kbPanel.field === "name") nameField.text = text
+                        else if (kbPanel.field === "user") userField.text = text
                         else passField.text = text
                     }
                     onAccepted: kbPanel.visible = false
@@ -223,5 +237,9 @@ Popup {
         }
     }
 
-    onOpened: { urlField.text = ""; nameField.text = ""; urlField.forceActiveFocus() }
+    onOpened: {
+        urlField.text = ""; nameField.text = ""
+        kbPanel.field = "url"; credKb.text = ""; kbPanel.visible = true
+        urlField.forceActiveFocus()
+    }
 }
