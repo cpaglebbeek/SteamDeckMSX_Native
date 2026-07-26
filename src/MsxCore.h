@@ -59,6 +59,9 @@ public:
     void setFullscreen(bool on);
     // Schrijfbare map voor openMSX (SRAM/settings/save-states) — BUG-024.
     static QString userDataDir();
+    // Afgesproken tekst waarmee de emulator om het pauzemenu vraagt; openMSX
+    // stuurt hem via `message`, wij vangen hem in het log-event op.
+    static constexpr const char *kMenuSignal = "SDMSX_MENU";
     // Argumenten van de laatste spawn — maakt de fullscreen-keuze toetsbaar
     // zonder een echte emulator te starten (BUG-022-gate).
     QStringList lastStartArgs() const { return m_lastStartArgs; }
@@ -67,6 +70,9 @@ public slots:
     void probeVersion();
     void start(const QString &romPath = QString());
     void stop();
+    // Pauzeren hoort bij het pauzemenu: zonder dit loopt het spel door terwijl
+    // de speler naar het menu kijkt.
+    void setPaused(bool on);
     // Compat: loadRom == loadRomSlotA (slot A is primaire).
     void loadRom(const QString &path);
     // v0.1.0-Xanadu: 2 cart slots.
@@ -98,6 +104,8 @@ signals:
     void slotARomChanged();
     void slotBRomChanged();
     void fullscreenChanged();
+    // De speler vroeg vanuit de emulator om het pauzemenu.
+    void menuRequested();
     // Generic IPC signals
     void replyReceived(int commandId, bool ok, const QString &body);
     void stateUpdate(const QString &type, const QString &name, const QString &value);

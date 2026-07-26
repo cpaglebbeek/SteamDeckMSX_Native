@@ -47,9 +47,23 @@ ApplicationWindow {
             // vensters die om de voorgrond vechten leveren op de Deck een
             // zwart scherm op, dus stapt de galerij opzij zolang er gespeeld
             // wordt en komt terug zodra de emulator weg is.
-            root.setGalleryVisible(!(fullscreen &&
+            // Uitzondering: staat het pauzemenu open, dan moet de galerij juist
+            // zichtbaar blijven — daar staat het menu immers op.
+            root.setGalleryVisible(emuMenu.opened ||
+                                   !(fullscreen &&
                                      (state === MsxCore.Booting ||
                                       state === MsxCore.Running)))
+            if (state !== MsxCore.Running && emuMenu.opened)
+                emuMenu.close()
+        }
+        onMenuRequested: {
+            // Pauzeren vóór het tonen: anders speelt het spel door achter het
+            // menu en verlies je levens terwijl je kiest.
+            msxCore.setPaused(true)
+            root.setGalleryVisible(true)
+            emuMenu.gameTitle = msxCore.currentRom.length > 0
+                ? msxCore.currentRom.split("/").pop() : ""
+            emuMenu.open()
         }
         onLogMessage: function(level, message) {
             if (level === "warning" || level === "stderr") {
@@ -267,6 +281,31 @@ ApplicationWindow {
         }
     }
 
+    // Tweede cartridge erbij steken. Apart van romPicker omdat die het spel
+    // start of slot A vervangt; hier hoort de eerste cartridge te blijven
+    // zitten — dat is het hele punt van een tweede slot (DD-009).
+    FileDialog {
+        id: slotBPicker
+        title: qsTr("Tweede cartridge kiezen (slot B)")
+        nameFilters: [
+            qsTr("ROM cartridges (*.rom)"),
+            qsTr("MSX media (*.rom *.zip)"),
+            qsTr("Alle bestanden (*)")
+        ]
+        onAccepted: {
+            const p = selectedFile.toString().replace("file://", "")
+            cartridges.addRom(p)
+            // Slot B kan alleen in een draaiende machine; anders start de
+            // emulator eerst met slot A leeg en valt er niets te combineren.
+            if (msxCore.state !== MsxCore.Running) {
+                msxCore.start("")
+                toast.show(qsTr("Emulator starten voor slot B…"), "info")
+            }
+            msxCore.loadRomSlotB(p)
+            toast.show(qsTr("Slot B → ") + p.split("/").pop(), "info")
+        }
+    }
+
     FileDialog {
         id: romPicker
         title: qsTr("Selecteer een MSX-ROM, schijf of tape")
@@ -329,9 +368,30 @@ ApplicationWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: Tokens.space4
 
-                    // v0.1.0-Xanadu DD-010: hint-strip rechtsboven.
+                    // v0.4.0: was een tekstuele hint-strip. Op de Deck is er
+                    // geen toetsenbord, dus de twee acties die je tijdens het
+                    // spelen nodig hebt zijn nu echte knoppen — aanwijsbaar met
+                    // touch én bereikbaar met de rechter joystick.
+                    MenuButton {
+                        id: slotBButton
+                        anchors.verticalCenter: parent.verticalCenter
+                        label: qsTr("Tweede cartridge")
+                        hint: qsTr("S")
+                        onClicked: slotBPicker.open()
+                        KeyNavigation.right: openButton
+                    }
+
+                    MenuButton {
+                        id: openButton
+                        anchors.verticalCenter: parent.verticalCenter
+                        label: qsTr("Openen")
+                        hint: qsTr("O")
+                        onClicked: romPicker.open()
+                        KeyNavigation.left: slotBButton
+                    }
+
                     Text {
-                        text: qsTr("O · open    M · map    R · scan    I · BIOS    U · URL    S · Slot")
+                        text: qsTr("M · map    R · scan    I · BIOS    U · URL")
                         color: Tokens.fgSecondary
                         font.family: Tokens.fontFamilyMono
                         font.pixelSize: Tokens.fontSizeLabel
@@ -385,6 +445,7 @@ ApplicationWindow {
             GameGrid {
                 id: browser
                 model: library
+                thumbGen: thumbs
                 width: parent.width
                 height: parent.height - 240
                 focus: true
@@ -505,6 +566,33 @@ ApplicationWindow {
                     width: (parent.width - Tokens.space4) / 2
                 }
             }
+        }
+    }
+
+    // Pauzemenu bovenop een lopend spel (menu-toets in de emulator).
+    EmulatorMenu {
+        id: emuMenu
+        onResumeRequested: {
+            close()
+            msxCore.setPaused(false)
+            // Galerij weer opzij, anders staat hij vóór het spel — precies de
+            // situatie die BUG-022 veroorzaakte.
+            if (msxCore.fullscreen && msxCore.state === MsxCore.Running)
+                root.setGalleryVisible(false)
+        }
+        onGalleryRequested: {
+            close()
+            // Eerst unpause: een gepauzeerde emulator reageert niet op `quit`.
+            msxCore.setPaused(false)
+            msxCore.stop()
+            root.setGalleryVisible(true)
+            toast.show(qsTr("Terug in de galerij"), "info")
+        }
+        onQuitRequested: {
+            close()
+            msxCore.setPaused(false)
+            msxCore.stop()
+            Qt.quit()
         }
     }
 

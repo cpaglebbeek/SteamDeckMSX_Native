@@ -104,6 +104,9 @@ qt_add_qml_module(steamdeckmsx_app
         # v0.3.0-MazeOfGalious
         qml/GameGrid.qml
         qml/GameTile.qml
+        # v0.4.0-Vampire — bedienbaar zonder toetsenbord
+        qml/MenuButton.qml
+        qml/EmulatorMenu.qml
     RESOURCES
         assets/icons/dpad/up.svg
         assets/icons/dpad/down.svg

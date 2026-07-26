@@ -157,9 +157,13 @@ void MsxCore::start(const QString &romPath)
                         QStringLiteral("set power on")};
     if (m_fullscreen) {
         startup << QStringLiteral("set fullscreen on");
-        // De galerij is tijdens het spelen verborgen en vangt geen toetsen meer,
-        // dus legt openMSX zelf de uitgang vast (zie BUG-023-preset).
-        startup << QStringLiteral("bind F12 quit");
+        // De galerij is tijdens het spelen verborgen en vangt geen toetsen meer.
+        // openMSX bindt daarom zelf de menu-toets, en meldt het indrukken via
+        // zijn eigen `message` — dat komt hier binnen als <log>-event, het enige
+        // kanaal dat een draaiende emulator terug naar de app heeft.
+        // F12 gaf eerder direct `quit`; dat gaf geen keuze en sloot ook af als
+        // je alleen even wilde pauzeren.
+        startup << QStringLiteral("bind F12 {message \"%1\"}").arg(kMenuSignal);
     }
     args << QStringLiteral("-command") << startup.join(QStringLiteral(" ; "));
     m_lastStartArgs = args;
@@ -178,6 +182,13 @@ void MsxCore::start(const QString &romPath)
     m_nextCommandId = 1;
     m_xml.clear();
     m_process.start(m_openmsxPath, args);
+}
+
+void MsxCore::setPaused(bool on)
+{
+    if (m_state != Running) return;
+    sendCommand(QStringLiteral("set pause %1").arg(on ? QStringLiteral("on")
+                                                      : QStringLiteral("off")));
 }
 
 void MsxCore::stop()
@@ -461,7 +472,14 @@ void MsxCore::handleEndElement()
         return;
     }
     if (name == QStringLiteral("log")) {
-        emit logMessage(m_curLogLevel, m_curText.trimmed());
+        const QString text = m_curText.trimmed();
+        // De emulator heeft geen andere weg terug naar de app dan zijn eigen
+        // log; de menu-toets komt daarom als afgesproken tekst binnen.
+        if (text == kMenuSignal) {
+            emit menuRequested();
+        } else {
+            emit logMessage(m_curLogLevel, text);
+        }
         m_curLogLevel.clear();
         return;
     }

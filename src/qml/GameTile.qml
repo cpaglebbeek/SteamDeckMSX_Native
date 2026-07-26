@@ -18,6 +18,30 @@ Item {
     property url thumbSource
     property bool hasThumb: false
     property bool focused: false
+    property var thumbGen: null
+
+    // v0.4.0: de tegel toont de eerste minuut van het spel als korte animatie
+    // in plaats van één stilstaand beeld — een titelscherm zegt weinig,
+    // beweging wel. Alleen de tegel met focus speelt af: twaalf tegels die
+    // tegelijk elke 320 ms een PNG van schijf laden maakt het scrollen
+    // schokkerig, en je kijkt toch maar naar één tegel.
+    property var frames: []
+    property int frameIndex: 0
+
+    // Frames pas opzoeken bij focus: tijdens het scannen van een grote map zou
+    // een lookup per tegel de scan onnodig vertragen.
+    onFocusedChanged: {
+        if (focused && frames.length === 0 && sha1.length > 0 && thumbGen)
+            frames = thumbGen.framesFor(sha1)
+        frameIndex = 0
+    }
+
+    Timer {
+        running: tile.focused && tile.frames.length > 1
+        interval: 320         // ~3 beelden per seconde: rustig genoeg om te volgen
+        repeat: true
+        onTriggered: tile.frameIndex = (tile.frameIndex + 1) % tile.frames.length
+    }
 
     // Kleur uit de fingerprint: dezelfde ROM krijgt altijd dezelfde tegel,
     // en een map vol spellen levert vanzelf een gevarieerd palet op.
@@ -74,7 +98,12 @@ Item {
             Image {
                 id: shot
                 anchors.fill: parent
-                source: tile.hasThumb ? tile.thumbSource : ""
+                source: {
+                    if (!tile.hasThumb) return ""
+                    if (tile.focused && tile.frames.length > 1)
+                        return "file://" + tile.frames[tile.frameIndex % tile.frames.length]
+                    return tile.thumbSource
+                }
                 visible: tile.hasThumb && status === Image.Ready
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true

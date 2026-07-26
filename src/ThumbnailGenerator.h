@@ -59,6 +59,10 @@ public:
 
     // Doelpad voor een SHA-1 (ook zonder dat er al een bestand staat).
     Q_INVOKABLE static QString thumbnailPathFor(const QString &sha1Hex);
+    // Voor de galerij: hoeveel frames staan er klaar voor deze ROM, en waar.
+    // Teruggeven als lijst i.p.v. een aantal, omdat een reeks gaten kan hebben
+    // als het spel halverwege stopte.
+    Q_INVOKABLE static QStringList framesFor(const QString &sha1Hex);
 
 signals:
     void openmsxPathChanged();
@@ -87,7 +91,12 @@ private:
 
     // Harde bovengrens per ROM. Een enkele ROM die niet wil booten mag de
     // wachtrij niet blokkeren; kill en door naar de volgende.
-    int killTimeoutMs() const { return (m_captureSeconds + 15) * 1000; }
+    // Wachttijd is emulatietijd, geen wandkloktijd: met `throttle off` rekent
+    // openMSX sneller dan realtime, maar hoeveel sneller hangt van de machine
+    // af. Ruim bemeten, want een te krappe kill maakt halve frame-reeksen.
+    int killTimeoutMs() const { return (m_frameSpanSeconds + 30) * 1000; }
+    // Pad van frame i, afgeleid van het basispad (…/<sha1>.png → …/<sha1>_03.png).
+    static QString framePath(const QString &basePath, int index);
 
     QString m_openmsxPath;
     QString m_dataPath;
@@ -97,6 +106,11 @@ private:
     QProcess *m_proc{nullptr};
     QTimer *m_killTimer{nullptr};
     int m_captureSeconds{7};
+    // Aantal frames en de emulatietijd waarover ze gespreid worden. 12 frames
+    // over een minuut geeft een herkenbare beweging zonder de galerij vol te
+    // zetten met bestanden; 1 frame schakelt terug naar het v0.3.x-gedrag.
+    int m_frameCount{12};
+    int m_frameSpanSeconds{60};
     int m_generated{0};
     bool m_busy{false};
 };

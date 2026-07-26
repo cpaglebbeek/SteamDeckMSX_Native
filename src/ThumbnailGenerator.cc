@@ -31,6 +31,31 @@ QString ThumbnailGenerator::thumbnailPathFor(const QString &sha1Hex)
     return RomLibrary::thumbnailDir() + QChar('/') + sha1Hex.toLower() + QStringLiteral(".png");
 }
 
+QStringList ThumbnailGenerator::framesFor(const QString &sha1Hex)
+{
+    const QString base = thumbnailPathFor(sha1Hex);
+    QStringList out;
+    // Ruim doorzoeken: het aantal frames is een instelling die kan wijzigen,
+    // en oude reeksen mogen niet ineens half verdwijnen uit de galerij.
+    for (int i = 0; i < 64; ++i) {
+        const QFileInfo f(framePath(base, i));
+        if (f.exists() && f.size() > 0) out << f.absoluteFilePath();
+    }
+    return out;
+}
+
+QString ThumbnailGenerator::framePath(const QString &basePath, int index)
+{
+    // …/<sha1>.png → …/<sha1>_00.png. Frame 0 houdt bewust óók een eigen naam:
+    // dan is aan het bestandspatroon te zien dat het om een reeks gaat, en kan
+    // de galerij het aantal frames tellen zonder aparte administratie.
+    QString base = basePath;
+    if (base.endsWith(QStringLiteral(".png"), Qt::CaseInsensitive)) {
+        base.chop(4);
+    }
+    return QStringLiteral("%1_%2.png").arg(base).arg(index, 2, 10, QChar('0'));
+}
+
 void ThumbnailGenerator::setOpenmsxPath(const QString &p)
 {
     if (p == m_openmsxPath) return;
@@ -122,12 +147,32 @@ QStringList ThumbnailGenerator::argsFor(const Job &job, const QString &outPath) 
     } else {
         args << QStringLiteral("-carta") << job.romPath;
     }
-    // openMSX schrijft zelf de PNG en sluit daarna af. Pad tussen accolades
-    // zodat spaties in het pad de Tcl-parser niet breken.
-    args << QStringLiteral("-command")
-         << QStringLiteral("after time %1 {screenshot {%2} ; quit}")
-                .arg(m_captureSeconds)
-                .arg(outPath);
+    // v0.4.0: niet één plaatje maar een reeks over de eerste minuut, zodat de
+    // tegel laat zien wat een spel dóét in plaats van alleen het titelscherm —
+    // en zodat een spel dat traag opstart niet als zwart vlak in de galerij komt.
+    //
+    // `set throttle off` is hier het verschil tussen bruikbaar en onbruikbaar:
+    // zonder dat kost één minuut speeltijd ook echt een minuut, en een collectie
+    // van twintig spellen dus twintig minuten. openMSX rekent dan zo snel als de
+    // machine toelaat.
+    //
+    // Pad tussen accolades zodat spaties in het pad de Tcl-parser niet breken.
+    QStringList cmds;
+    cmds << QStringLiteral("set throttle off");
+    const int n = qMax(1, m_frameCount);
+    for (int i = 0; i < n; ++i) {
+        // Eerste frame op captureSeconds (na de boot), daarna gespreid tot
+        // frameSpanSeconds. Bij n == 1 blijft het gedrag van v0.3.x: één plaatje.
+        const int t = (n == 1)
+            ? m_captureSeconds
+            : m_captureSeconds + i * (m_frameSpanSeconds - m_captureSeconds) / (n - 1);
+        cmds << QStringLiteral("after time %1 {screenshot {%2}}")
+                    .arg(t)
+                    .arg(framePath(outPath, i));
+    }
+    const int last = (n == 1) ? m_captureSeconds : m_frameSpanSeconds;
+    cmds << QStringLiteral("after time %1 {quit}").arg(last + 1);
+    args << QStringLiteral("-command") << cmds.join(QStringLiteral(" ; "));
     return args;
 }
 
@@ -187,6 +232,22 @@ void ThumbnailGenerator::onFinished(int exitCode, QProcess::ExitStatus status)
     // Enige waarheid is of er een bruikbaar bestand staat: openMSX kan met
     // exitcode 0 eindigen zonder screenshot (ROM die niet boot) én met een
     // niet-nul code nádat de PNG al geschreven is.
+    //
+    // v0.4.0: de frames heten <sha1>_00.png … Het eerste bruikbare frame wordt
+    // óók onder de oude naam <sha1>.png weggeschreven, zodat alles wat een
+    // enkele tegel verwacht blijft werken en een halve reeks (spel dat halverwege
+    // crasht) nog steeds een bruikbaar plaatje oplevert.
+    int frames = 0;
+    for (int i = 0; i < qMax(1, m_frameCount); ++i) {
+        const QFileInfo f(framePath(m_currentOut, i));
+        if (!f.exists() || f.size() == 0) continue;
+        if (frames == 0) {
+            QFile::remove(m_currentOut);
+            QFile::copy(f.absoluteFilePath(), m_currentOut);
+        }
+        ++frames;
+    }
+
     const QFileInfo fi(m_currentOut);
     if (fi.exists() && fi.size() > 0) {
         ++m_generated;

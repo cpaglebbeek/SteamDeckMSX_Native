@@ -1,0 +1,90 @@
+import QtQuick
+import QtQuick.Controls.Basic
+
+// Menu dat bovenop een lopend spel komt: verder spelen, terug naar de galerij,
+// of alles afsluiten. Nodig omdat de galerij tijdens het spelen verborgen is
+// (BUG-022) en de emulator zelf geen uitweg bood behalve een sneltoets — op de
+// Deck heb je geen toetsenbord om die te vinden.
+//
+// De emulator wordt gepauzeerd zolang dit menu open staat: zonder pauze loopt
+// het spel door terwijl je naar het menu kijkt, en dat kost levens.
+Popup {
+    id: root
+
+    property string gameTitle: ""
+    signal resumeRequested()
+    signal galleryRequested()
+    signal quitRequested()
+
+    modal: true
+    focus: true
+    closePolicy: Popup.NoAutoClose      // alleen via een expliciete keuze weg
+    anchors.centerIn: Overlay.overlay
+    width: 420
+    padding: Tokens.space5
+
+    background: Rectangle {
+        color: Tokens.bgElevated
+        border.color: Tokens.accentPrimary
+        border.width: 1
+        radius: 10
+    }
+
+    onOpened: resumeBtn.forceActiveFocus()
+
+    contentItem: Column {
+        spacing: Tokens.space4
+
+        Text {
+            text: qsTr("Pauze")
+            color: Tokens.fgPrimary
+            font.family: Tokens.fontFamily
+            font.pixelSize: Tokens.fontSizeTitle
+            font.weight: Font.Bold
+        }
+
+        Text {
+            visible: root.gameTitle.length > 0
+            text: root.gameTitle
+            color: Tokens.fgSecondary
+            font.family: Tokens.fontFamily
+            font.pixelSize: Tokens.fontSizeBody
+            elide: Text.ElideRight
+            width: root.width - Tokens.space5 * 2
+        }
+
+        MenuButton {
+            id: resumeBtn
+            width: root.width - Tokens.space5 * 2
+            label: qsTr("Verder spelen")
+            hint: qsTr("A")
+            primary: true
+            KeyNavigation.down: galleryBtn
+            onClicked: root.resumeRequested()
+        }
+
+        MenuButton {
+            id: galleryBtn
+            width: root.width - Tokens.space5 * 2
+            label: qsTr("Terug naar de galerij")
+            hint: qsTr("B")
+            KeyNavigation.up: resumeBtn
+            KeyNavigation.down: quitBtn
+            onClicked: root.galleryRequested()
+        }
+
+        MenuButton {
+            id: quitBtn
+            width: root.width - Tokens.space5 * 2
+            label: qsTr("SteamDeckMSX afsluiten")
+            KeyNavigation.up: galleryBtn
+            onClicked: root.quitRequested()
+        }
+    }
+
+    // Escape/B sluit het menu niet af maar hervat — anders zit je vast in een
+    // menu dat je niet weg kunt klikken zonder het spel te verlaten.
+    Keys.onPressed: function(e) {
+        if (e.key === Qt.Key_Escape) { root.resumeRequested(); e.accepted = true }
+    }
+}
