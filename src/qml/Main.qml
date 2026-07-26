@@ -98,6 +98,11 @@ ApplicationWindow {
         id: cartridges
         onDownloadFinished: function(title, romPath) {
             toast.show(qsTr("ROM toegevoegd: ") + title, "info")
+            // Opslagmap als scanroot registreren: zonder dat blijft een net
+            // opgehaald spel buiten de galerij omdat er nooit in die map
+            // gekeken wordt.
+            library.addScanRoot(romPath.substring(0, romPath.lastIndexOf("/")))
+            library.rescan()
             urlImportDialog.busy = false
             urlImportDialog.close()
         }
@@ -151,6 +156,31 @@ ApplicationWindow {
             if (generated > 0) {
                 toast.show(qsTr("Tegels bijgewerkt: ") + generated, "info")
             }
+        }
+    }
+
+    // v0.5.0: externe index om in te zoeken. De bron publiceert zijn inhoud als
+    // één tekstbestand; de HTML-lijst is JS-gehydrateerd en levert bij een fetch
+    // niets op. Index wordt gecacht en offline doorzocht, zodat typen direct
+    // filtert in plaats van per letter op het netwerk te wachten.
+    OnlineIndex {
+        id: online
+        indexUrl: "https://download.file-hunter.com/allfiles.txt"
+        baseUrl: "https://download.file-hunter.com/"
+        onFailed: function(reason) {
+            toast.show(qsTr("Lijst ophalen mislukt: ") + reason, "error")
+        }
+    }
+
+    OnlineBrowser {
+        id: onlineBrowser
+        index: online
+        onDownloadRequested: function(url, name) {
+            // Downloaden gebruikt dezelfde weg als de bestaande URL-import:
+            // https-only, groottegrens en atomic write zitten daar al in.
+            cartridges.addFromUrl(url, name)
+            toast.show(qsTr("Ophalen: ") + name, "info")
+            close()
         }
     }
 
@@ -378,6 +408,15 @@ ApplicationWindow {
                         label: qsTr("Tweede cartridge")
                         hint: qsTr("S")
                         onClicked: slotBPicker.open()
+                        KeyNavigation.right: onlineButton
+                    }
+
+                    MenuButton {
+                        id: onlineButton
+                        anchors.verticalCenter: parent.verticalCenter
+                        label: qsTr("Zoeken")
+                        onClicked: onlineBrowser.open()
+                        KeyNavigation.left: slotBButton
                         KeyNavigation.right: openButton
                     }
 
@@ -387,7 +426,7 @@ ApplicationWindow {
                         label: qsTr("Openen")
                         hint: qsTr("O")
                         onClicked: romPicker.open()
-                        KeyNavigation.left: slotBButton
+                        KeyNavigation.left: onlineButton
                     }
 
                     Text {

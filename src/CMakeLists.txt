@@ -30,7 +30,9 @@ add_library(steamdeckmsx_core STATIC
     RomLibrary.h
     RomLibrary.cc
     ThumbnailGenerator.h
+    OnlineIndex.h
     ThumbnailGenerator.cc
+    OnlineIndex.cc
 )
 set_target_properties(steamdeckmsx_core PROPERTIES AUTOMOC ON)
 target_include_directories(steamdeckmsx_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -107,6 +109,9 @@ qt_add_qml_module(steamdeckmsx_app
         # v0.4.0-Vampire — bedienbaar zonder toetsenbord
         qml/MenuButton.qml
         qml/EmulatorMenu.qml
+        # v0.5.0-Quarth — online zoeken zonder toetsenbord
+        qml/OnScreenKeyboard.qml
+        qml/OnlineBrowser.qml
     RESOURCES
         assets/icons/dpad/up.svg
         assets/icons/dpad/down.svg

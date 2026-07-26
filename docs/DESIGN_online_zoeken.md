@@ -87,3 +87,30 @@ Beide leiden naar dezelfde actie: het gekozen bestand gaat via de bestaande
   metadata — geen jaartal, uitgever of machinetype. Het machinetype leidt de app
   al zelf af (`RomTypeDetector`), maar sorteren op iets anders dan naam kan niet
   zonder aanvullende bron.
+
+## Stand van zaken na v0.5.0 (geïmplementeerd, deels geverifieerd)
+
+Gebouwd: `OnlineIndex` (ophalen, cachen, offline filteren), `OnScreenKeyboard.qml`
+(raster A-Z/0-9, spatie, wissen) en `OnlineBrowser.qml`, met een "Zoeken"-knop in
+de header. Downloaden loopt via de bestaande `CartridgeModel::addFromUrl`, en de
+opslagmap wordt na afloop als scanroot geregistreerd — zonder dat blijft een net
+opgehaald spel buiten de galerij omdat er nooit in die map gekeken wordt.
+
+**Wel geverifieerd:** de index is bereikbaar zonder anti-bot-omweg (HTTP 200),
+bevat enkele duizenden regels, en de site construeert zijn eigen downloadlink als
+`https://download.file-hunter.com/` + de indexwaarde — exact wat `OnlineIndex`
+doet. Build groen, 6/6 tests, app start zonder QML-meldingen.
+
+**Niet geverifieerd, en dat is een echt gat:** er is geen geslaagde
+end-to-end-download gedaan. Twee losse eindjes die daarbij opvielen:
+
+1. De regels in het opgehaalde fragment bevatten géén mapnamen (geen `/`),
+   terwijl de bron wel mappen heeft. Of de index verderop wél paden bevat, of
+   dat de root plat is, is niet vastgesteld.
+2. Het bestand gebruikt Windows-regeleinden. De parser vangt dat op met
+   `trimmed()`, maar shell-controles erop gaven tegenstrijdige tellingen — reden
+   te meer om de download één keer echt te draaien in plaats van af te leiden.
+
+Volgende stap is dus niet meer bouwen maar meten: één titel kiezen in de UI,
+downloaden, en controleren dat het bestand in de ROM-map landt, dat de scan hem
+oppikt en dat er een tegel bij komt. Pas daarna mag dit als werkend gelden.
