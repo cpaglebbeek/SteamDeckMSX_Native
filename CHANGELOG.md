@@ -1,5 +1,27 @@
 # CHANGELOG — SteamDeckMSX_Native
 
+## v0.3.5-Pippols (2026-07-26) — de emulator mocht nergens schrijven
+
+> Gevonden op het verificatiebeeld van v0.3.3: over het spel heen stond een
+> foutmelding dat SRAM niet bewaard kon worden.
+
+- **Oorzaak:** de read-only home uit v0.3.1 (nodig om ROM-mappen te kunnen
+  scannen) maakte ook `~/.openMSX` onschrijfbaar. Daar bewaart openMSX SRAM,
+  instellingen en save-states — die gingen dus verloren, en elke speelsessie
+  begon met een dialoog over het spel heen.
+- **De voor de hand liggende fix hielp niet:** `--persist=.openMSX` in het
+  manifest werd overruled door de read-only home-mount; gemeten, niet aangenomen.
+  De app wijst nu `OPENMSX_HOME` naar de eigen app-map. Dat is portabel (Qt
+  bepaalt het pad per platform) en botst niet met sandbox-mounts.
+- **De gate die dit moest bewaken was zelf fout** — hij startte openMSX
+  rechtstreeks, waardoor niemand die variabele zette en een correcte fix rood
+  gaf. De controle zit nu ná een echte spelsessie via de app, in de bestaande
+  zichtbaarheids-gate. Hetzelfde patroon als BUG-022: een gate die het onderdeel
+  anders aanroept dan de app doet, meet iets anders dan wat de gebruiker krijgt.
+- **Buildtijd onderzocht** (BUG-025, open): twee builds ná elkaar zonder enige
+  wijziging geven allebei een cache-miss op de openMSX-module, terwijl tcl en
+  glew wél een hit krijgen. De miss hangt dus niet samen met wat er gewijzigd is.
+
 ## v0.3.3-TreasureOfUsas (2026-07-26) — het spel start, maar je zag niets
 
 > Melding van de gebruiker: een spel kiezen toont "Start: <titel>" en daarna

@@ -26,7 +26,13 @@ finish-args:
   # én potentieel oudere SteamOS-runtimes zitten op 1.14.x → --device=all
   # (superset: dri + input + overige devices) als compatibele terugval (BUG-014).
   - --device=all
-  - --persist=.var/app/nl.icthorse.SteamDeckMSX
+  # BUG-024: openMSX schrijft SRAM, settings.xml en save-states in ~/.openMSX,
+  # maar de home hieronder is read-only — dus toonde het een foutmelding over
+  # het spel heen en gingen save-states verloren. --persist legt juist die map
+  # in ~/.var/app/<id>/ en maakt hem daarmee schrijfbaar, zonder de read-only
+  # home op te geven. (De vorige regel, --persist=.var/app/nl.icthorse.SteamDeckMSX,
+  # was een no-op: dat pad ís de plek waar persist naartoe wijst.)
+  - --persist=.openMSX
   # v0.3.0-MazeOfGalious: de bibliotheek scant lokale ROM-mappen.
   #
   # v0.3.1: eerst stonden hier alleen xdg-download + xdg-documents. Dat leek

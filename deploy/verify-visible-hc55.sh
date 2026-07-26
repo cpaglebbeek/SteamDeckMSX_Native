@@ -151,6 +151,22 @@ read -r gw3 gh3 gs3 <<<"$(win_state 'SteamDeckMSX')"
 echo "   galerij: ${gw3}x${gh3} $gs3"
 [[ "$gs3" == "IsViewable" ]] || fail "galerij komt niet terug na F12 — speler zit vast in de emulator"
 
+# BUG-024: openMSX bewaart SRAM, settings en save-states in zijn user-dir. De
+# home is read-only, dus wijst de app OPENMSX_HOME naar de eigen app-map. Dit
+# hoort hier en niet in een los script: alleen ná een echte spelsessie via de
+# app staat vast dat de app die variabele ook werkelijk meegeeft. Een losse
+# openmsx-aanroep zet hem niet en bewijst dus niets (zie BUG-022, dezelfde val).
+echo "== openMSX kon schrijven =="
+if grep -qi "read-only file system" "$OUTDIR/app.log"; then
+    grep -i "read-only" "$OUTDIR/app.log" | head -2
+    fail "openMSX kon niet schrijven — SRAM en save-states gaan verloren (BUG-024)"
+fi
+userdir=$(find "$HOME/.var/app/$APP_ID" -type d -name openmsx 2>/dev/null | head -1)
+[[ -n "$userdir" ]] || fail "openMSX kreeg geen eigen map onder ~/.var/app/$APP_ID"
+written=$(find "$userdir" -type f 2>/dev/null | wc -l | tr -d ' ')
+echo "   $userdir ($written bestanden)"
+[[ "$written" -gt 0 ]] || fail "map bestaat maar openMSX schreef er niets in"
+
 echo
 echo "ZICHTBAARHEIDS-GATE GROEN"
 echo "  01-galerij.png  — galerij bij start"

@@ -57,6 +57,8 @@ public:
     QString slotBRom() const { return m_slotBRom; }
     bool fullscreen() const { return m_fullscreen; }
     void setFullscreen(bool on);
+    // Schrijfbare map voor openMSX (SRAM/settings/save-states) — BUG-024.
+    static QString userDataDir();
     // Argumenten van de laatste spawn — maakt de fullscreen-keuze toetsbaar
     // zonder een echte emulator te starten (BUG-022-gate).
     QStringList lastStartArgs() const { return m_lastStartArgs; }

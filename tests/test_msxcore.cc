@@ -247,6 +247,19 @@ int main(int argc, char *argv[])
         }
     }
 
-    qInfo() << "All MsxCore smoke-tests OK (T1-T12)";
+    // T13: BUG-024 — openMSX krijgt een eigen schrijfbare map mee. In de
+    // Flatpak is de home read-only, dus zonder OPENMSX_HOME gaan SRAM en
+    // save-states verloren en klaagt de emulator over het spel heen.
+    {
+        const QString dir = MsxCore::userDataDir();
+        EXPECT(!dir.isEmpty());
+        EXPECT(QDir(dir).exists());  // wordt aangemaakt, niet alleen berekend
+        QFileInfo probe(dir);
+        EXPECT(probe.isWritable());
+        // Niet in de home-root: dat is precies de map die read-only is.
+        EXPECT(dir != QDir::homePath() + QStringLiteral("/.openMSX"));
+    }
+
+    qInfo() << "All MsxCore smoke-tests OK (T1-T13)";
     return 0;
 }

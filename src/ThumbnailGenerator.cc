@@ -1,4 +1,5 @@
 #include "ThumbnailGenerator.h"
+#include "MsxCore.h"
 #include "RomLibrary.h"
 
 #include <QDir>
@@ -159,6 +160,10 @@ void ThumbnailGenerator::startNext()
     if (!m_dataPath.isEmpty()) {
         env.insert(QStringLiteral("OPENMSX_SYSTEM_DATA"), m_dataPath);
     }
+    // BUG-024: ook hier moet openMSX ergens kunnen schrijven; de home is
+    // read-only, en een emulator die zijn eigen map niet kan aanmaken kost
+    // per tegel een foutmelding.
+    env.insert(QStringLiteral("OPENMSX_HOME"), MsxCore::userDataDir());
     m_proc->setProcessEnvironment(env);
     m_proc->setProcessChannelMode(QProcess::MergedChannels);
 

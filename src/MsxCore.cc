@@ -1,6 +1,7 @@
 #include "MsxCore.h"
 #include "RomTypeDetector.h"
 
+#include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QStandardPaths>
@@ -33,6 +34,20 @@ MsxCore::MsxCore(QObject *parent)
     if (fs == "0" || fs.toLower() == "false") {
         m_fullscreen = false;
     }
+}
+
+QString MsxCore::userDataDir()
+{
+    // BUG-024: openMSX bewaart SRAM, settings.xml en save-states in ~/.openMSX.
+    // In de Flatpak is de home read-only (BUG-017-fix), dus faalde dat stil —
+    // met een foutmelding over het spel heen en verloren save-states. openMSX
+    // kent `OPENMSX_HOME` als override; die wijst hier naar de eigen
+    // schrijfbare app-map. `--persist=.openMSX` in het manifest hielp niet: de
+    // read-only home-mount wint van die bind, gemeten op HC55.
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+                        + QStringLiteral("/openmsx");
+    QDir().mkpath(dir);
+    return dir;
 }
 
 void MsxCore::setFullscreen(bool on)
@@ -149,12 +164,13 @@ void MsxCore::start(const QString &romPath)
     args << QStringLiteral("-command") << startup.join(QStringLiteral(" ; "));
     m_lastStartArgs = args;
 
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     // BUG-004 fix: set OPENMSX_SYSTEM_DATA env so the bin finds machines/skins.
     if (!m_dataPath.isEmpty()) {
-        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
         env.insert(QStringLiteral("OPENMSX_SYSTEM_DATA"), m_dataPath);
-        m_process.setProcessEnvironment(env);
     }
+    env.insert(QStringLiteral("OPENMSX_HOME"), userDataDir());
+    m_process.setProcessEnvironment(env);
 
     setState(Booting);
     m_xmlBuffer.clear();
