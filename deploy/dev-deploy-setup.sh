@@ -25,13 +25,29 @@ PUBKEY='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEd7ST22ld/FeI3DRpoqLI2E/HdVSvVuonJB
 
 echo "== Deploy2SteamDeck setup =="
 
+# Verse Steam Decks hebben géén gebruikerswachtwoord, en sudo weigert dan
+# hard. Eerst detecteren, anders strandt stap 1 met een cryptische prompt.
+if passwd -S "$USER" 2>/dev/null | grep -qE ' (NP|L) '; then
+    echo
+    echo "!! Er is nog geen wachtwoord ingesteld op deze Deck — sudo werkt dan niet."
+    echo "   Doe eerst (eenmalig):   passwd"
+    echo "   Kies een wachtwoord, en draai daarna dit commando opnieuw:"
+    echo "   curl -fsSL https://icthorse.nl/steam/dev/deploy | bash"
+    exit 1
+fi
+
 echo "== 1/3 ssh-server aanzetten =="
-if systemctl is-active -q sshd 2>/dev/null; then
-    echo "   sshd draait al"
+# </dev/tty: bij `curl | bash` is stdin de pipe en kan sudo zijn
+# wachtwoordprompt nergens kwijt. Altijd enable --now draaien (idempotent):
+# een eerdere run kan half gestrand zijn terwijl is-active toen al ja zei.
+echo "   sudo-wachtwoord van de Deck nodig (eenmalig):"
+sudo systemctl enable --now sshd </dev/tty
+if systemctl is-active -q sshd; then
+    echo "   sshd draait"
 else
-    echo "   sudo-wachtwoord van de Deck nodig (eenmalig):"
-    sudo systemctl enable --now sshd
-    echo "   sshd aan + start voortaan mee"
+    echo "!! sshd start niet — status:"
+    systemctl status sshd --no-pager 2>&1 | head -8
+    exit 1
 fi
 
 echo "== 2/3 ontwikkel-Mac autoriseren =="
@@ -45,11 +61,15 @@ else
 fi
 
 echo "== 3/3 bereikbaarheid =="
-HOST_LOCAL="$(hostname).local"
-DECK_IP=$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -1)
+# Geen `hostname` gebruiken: dat commando bestaat niet op SteamOS (gemeten
+# 2026-07-26, "opdracht niet gevonden" crashte het script hier via set -e).
+HOST_NAME="${HOSTNAME:-$(uname -n)}"
+DECK_IP=$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -1) || true
+LISTEN=$(ss -tln 2>/dev/null | grep -c ':22 ') || true
+echo "   luistert op poort 22: ${LISTEN:-0} socket(s)"
 echo
 echo "KLAAR — de Deck luistert nu naar deploys."
-echo "   naam:  $USER@$HOST_LOCAL"
+echo "   naam:  $USER@${HOST_NAME}.fritz.box (of ${HOST_NAME}.local)"
 echo "   ip:    ${DECK_IP:-onbekend} (wisselt; de naam hierboven is leidend)"
 echo
 echo "Vanaf nu op de Mac: /Deploy2SteamDeck — hier hoeft niets meer."
