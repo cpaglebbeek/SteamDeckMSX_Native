@@ -13,6 +13,7 @@ Popup {
 
     property string gameTitle: ""
     signal resumeRequested()
+    signal savesRequested()
     signal galleryRequested()
     signal quitRequested()
 
@@ -42,6 +43,8 @@ Popup {
         // een menu dat je niet weg kunt klikken zonder het spel te verlaten.
         Keys.onPressed: function(e) {
             if (e.key === Qt.Key_Escape) { root.resumeRequested(); e.accepted = true }
+            // Zelfde toets als in de galerij (en controller-X via Steam Input).
+            else if (e.key === Qt.Key_X) { root.savesRequested(); e.accepted = true }
         }
 
         Text {
@@ -68,16 +71,31 @@ Popup {
             label: qsTr("Verder spelen")
             hint: qsTr("A")
             primary: true
-            KeyNavigation.down: galleryBtn
+            KeyNavigation.down: savesBtn
             onClicked: root.resumeRequested()
+        }
+
+        MenuButton {
+            // v0.5.1: tijdens het spelen is de galerij verborgen en vangt de
+            // X-sneltoets dus niets — dit menu was de enige plek waar de speler
+            // nog kon komen, maar het bood geen weg naar save-states. Op de
+            // Deck bestond de functie daardoor simpelweg niet.
+            id: savesBtn
+            width: root.width - Tokens.space5 * 2
+            label: qsTr("Save-states")
+            hint: qsTr("X")
+            KeyNavigation.up: resumeBtn
+            KeyNavigation.down: galleryBtn
+            onClicked: root.savesRequested()
         }
 
         MenuButton {
             id: galleryBtn
             width: root.width - Tokens.space5 * 2
             label: qsTr("Terug naar de galerij")
-            hint: qsTr("B")
-            KeyNavigation.up: resumeBtn
+            // Geen "B"-hint meer: met de controller-layout (BUG-023) stuurt
+            // B een Escape en dat betekent hier juist "verder spelen".
+            KeyNavigation.up: savesBtn
             KeyNavigation.down: quitBtn
             onClicked: root.galleryRequested()
         }

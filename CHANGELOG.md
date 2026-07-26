@@ -1,5 +1,38 @@
 # CHANGELOG — SteamDeckMSX_Native
 
+## v0.5.1-Hinotori (2026-07-26) — controller-layout, save-states op de Deck, snelle builds (ROOD)
+
+> Vier structurele gaten: de Deck-knoppen deden niets logisch (BUG-023), save-
+> states waren op de Deck onbereikbaar én ongecontroleerd (BUG-029), elke
+> build hercompileerde openMSX voor niets (BUG-025) — en de nieuwe
+> roundtrip-gate ving vervolgens een rode architectuurbug: het hele
+> stdin-commandokanaal naar openMSX bleek nooit te hebben gewerkt (BUG-030).
+
+- **BUG-030 (ROOD) — commandokanaal gerepareerd:** openMSX negeert
+  `<command>`-elementen met een id-attribuut stilzwijgend, de
+  `<openmsx-control>`-handshake ontbrak, en replies dragen geen id. Alle
+  runtime-commando's (savestate/loadstate/pause/slot B/quit) waren daardoor
+  sinds v0.0.x no-ops; het pauzemenu pauzeerde in werkelijkheid nooit. Nu:
+  handshake bij processtart, id-loze commando's met XML-escaping, en
+  FIFO-correlatie van replies. De oude unit-test T7 valideerde het verzonnen
+  id-protocol via zijn eigen mock — aangepast aan het echte protocol.
+
+- **BUG-023 — Steam Input-layout meegeleverd:** `presets/controller_neptune.vdf`
+  (D-pad/stick = pijltjes, A = starten, B = terug, X = save-states, Y = stop,
+  Select = pauzemenu, L1 = scan, R1 = BIOS, rechter stick = muis). De deploy
+  zet hem automatisch klaar voor elk Steam-account op de Deck; de footer toont
+  de knoptoewijzing. Hardware-test open.
+- **BUG-029 — save-states bereikbaar en eerlijk:** Save-states-knop in het
+  pauzemenu (tijdens spelen was de X-sneltoets onbereikbaar: de galerij is dan
+  verborgen). SaveStateModel controleert nu het échte openMSX-resultaat: toast
+  pas na bevestiging, mislukte save geeft het slot weer vrij. De
+  zichtbaarheids-gate test de volledige roundtrip inclusief app-herstart.
+- **BUG-025 — build-cache werkt weer (fix, verificatie in deze ronde):**
+  flatpak-builder geeft `type: dir`-sources per definitie een random
+  cache-checksum ("always rebuild", builder-source-dir.c). De openmsx-module
+  komt nu uit de GitHub-fork, gepind op commit — cache-key = commit-hash.
+  build-all.sh bewaakt drift tussen manifest-pin en submodule-HEAD.
+
 ## v0.5.0-Goonies (2026-07-26) — startpaneel met twee slots + BIOS via URL op de Deck (oranje)
 
 > Twee gebruikerswensen van de Deck, direct na v0.4.1.

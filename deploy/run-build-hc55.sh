@@ -36,7 +36,10 @@ if [ -f "$BUNDLE_NAME" ]; then
   # een commit-hash maar geen Version-veld. Daarom publiceren we het nummer
   # ernaast, zodat de deploy op de Deck kan tonen wat er binnenkomt.
   printf '%s\n' "$VERSION_STR" > "$WEBDIR/VERSION" && \
-  echo "PUBLISHED $BUNDLE_NAME + latest-symlink + VERSION" >> flatpak-build.log
+  # BUG-023: controller-layout naast de bundle publiceren; deck-deploy.sh haalt
+  # hem daar op en zet hem in Steam Controller Configs op de Deck.
+  cp presets/controller_neptune.vdf "$WEBDIR/controller_neptune.vdf" && \
+  echo "PUBLISHED $BUNDLE_NAME + latest-symlink + VERSION + controller-preset" >> flatpak-build.log
 fi
 
 touch /root/sdmsx_build/BUILD_DONE

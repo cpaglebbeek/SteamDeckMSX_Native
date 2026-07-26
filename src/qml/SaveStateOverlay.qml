@@ -12,6 +12,15 @@ Popup {
 
     modal: true
     focus: true
+
+    // Zelfde les als BUG-027, derde keer in de Popup-familie: impliciete
+    // focus-chains in een Popup zijn onbetrouwbaar. Zonder expliciete
+    // forcering had de grid geen actieve focus en deed Enter niets —
+    // zichtbaar op gate-screenshot 04 (geen enkel slot gemarkeerd).
+    onOpened: {
+        if (grid.currentIndex < 0) grid.currentIndex = 0
+        grid.forceActiveFocus()
+    }
     width: parent ? parent.width - 2 * Tokens.safeMargin : 800
     height: parent ? parent.height - 2 * Tokens.safeMargin : 600
     anchors.centerIn: parent ? Overlay.overlay : null

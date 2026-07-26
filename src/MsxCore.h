@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QProcess>
+#include <QQueue>
 #include <QString>
 #include <QStringList>
 #include <QVariant>
@@ -147,7 +148,8 @@ private:
     // Per-element accumulator
     QString m_curElement{};
     QString m_curReplyResult{};
-    int m_curReplyId{0};
+    // BUG-030: replies dragen geen id; koppeling command→reply is strikt FIFO.
+    QQueue<int> m_replyIdQueue{};
     QString m_curUpdateType{};
     QString m_curUpdateName{};
     QString m_curLogLevel{};

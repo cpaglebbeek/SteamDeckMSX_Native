@@ -1,0 +1,164 @@
+"controller_mappings"
+{
+	// BUG-023: de Native-app leest zelf geen gamepad — Steam Input vertaalt de
+	// Deck-knoppen naar de toetsen waar de app al op luistert (DD-010). Deze
+	// layout wordt door deck-deploy.sh in Steam Controller Configs gezet onder
+	// de map "steamdeckmsx" (= naam van de non-Steam shortcut, lowercase),
+	// zodat hij automatisch actief is voor het Steam-item.
+	//
+	// Mapping (zie ook de footer-hint in Main.qml):
+	//   D-pad + linker stick  → pijltjestoetsen (galerij + MSX-cursor in-game)
+	//   A                     → Return  (starten / bevestigen)
+	//   B                     → Escape  (dialoog sluiten; hoofdscherm = afsluiten)
+	//   X                     → X       (save-states, alleen tijdens spel)
+	//   Y                     → Y       (spel stoppen)
+	//   Select (View)         → F12     (pauzemenu in-game, openMSX-bind)
+	//   Start                 → Return
+	//   L1                    → R       (opnieuw scannen)
+	//   R1                    → I       (BIOS-beheer)
+	//   Rechter stick         → muis    (tegels aanwijzen)
+	//   R2 / L2               → linker- / rechtermuisklik
+	//   Rechter trackpad      → muis (absoluut) + klik
+	"version"		"3"
+	"revision"		"1"
+	"title"			"SteamDeckMSX"
+	"description"		"Knoppen voor de SteamDeckMSX-galerij: A=starten, B=terug, X=save-states, Y=stop, Select=F12 pauzemenu, L1=scan, R1=BIOS, sticks=pijltjes/muis."
+	"creator"		"cpaglebbeek/SteamDeckMSX_Native"
+	"controller_type"	"controller_neptune"
+	"Timestamp"		"1753488000"
+
+	"group"
+	{
+		"id"		"0"
+		"mode"		"four_buttons"
+		"inputs"
+		{
+			"button_a"
+			{
+				"activators" { "Full_Press" { "bindings" { "binding" "key_press RETURN, Starten" } } }
+			}
+			"button_b"
+			{
+				"activators" { "Full_Press" { "bindings" { "binding" "key_press ESCAPE, Terug" } } }
+			}
+			"button_x"
+			{
+				"activators" { "Full_Press" { "bindings" { "binding" "key_press X, Save-states" } } }
+			}
+			"button_y"
+			{
+				"activators" { "Full_Press" { "bindings" { "binding" "key_press Y, Stop spel" } } }
+			}
+		}
+	}
+
+	"group"
+	{
+		"id"		"1"
+		"mode"		"dpad"
+		"inputs"
+		{
+			"dpad_north"	{ "activators" { "Full_Press" { "bindings" { "binding" "key_press UP" } } } }
+			"dpad_south"	{ "activators" { "Full_Press" { "bindings" { "binding" "key_press DOWN" } } } }
+			"dpad_west"	{ "activators" { "Full_Press" { "bindings" { "binding" "key_press LEFT" } } } }
+			"dpad_east"	{ "activators" { "Full_Press" { "bindings" { "binding" "key_press RIGHT" } } } }
+		}
+	}
+
+	"group"
+	{
+		// Linker stick als richtingstoetsen: zelfde navigatie als de D-pad.
+		"id"		"2"
+		"mode"		"dpad"
+		"inputs"
+		{
+			"dpad_north"	{ "activators" { "Full_Press" { "bindings" { "binding" "key_press UP" } } } }
+			"dpad_south"	{ "activators" { "Full_Press" { "bindings" { "binding" "key_press DOWN" } } } }
+			"dpad_west"	{ "activators" { "Full_Press" { "bindings" { "binding" "key_press LEFT" } } } }
+			"dpad_east"	{ "activators" { "Full_Press" { "bindings" { "binding" "key_press RIGHT" } } } }
+		}
+		"settings"
+		{
+			"deadzone"	"15000"
+		}
+	}
+
+	"group"
+	{
+		// Rechter stick = muis; de galerij volgt de cursor (v0.4.0).
+		"id"		"3"
+		"mode"		"joystick_mouse"
+		"settings"
+		{
+			"sensitivity"	"100"
+		}
+	}
+
+	"group"
+	{
+		"id"		"4"
+		"mode"		"trigger"
+		"inputs"
+		{
+			"click" { "activators" { "Full_Press" { "bindings" { "binding" "mouse_button LEFT, Klik" } } } }
+		}
+	}
+
+	"group"
+	{
+		"id"		"5"
+		"mode"		"trigger"
+		"inputs"
+		{
+			"click" { "activators" { "Full_Press" { "bindings" { "binding" "mouse_button RIGHT" } } } }
+		}
+	}
+
+	"group"
+	{
+		// button_escape = Start, button_menu = Select/View (historische
+		// Steam-namen; niet verwisselen).
+		"id"		"6"
+		"mode"		"switches"
+		"inputs"
+		{
+			"button_escape"	{ "activators" { "Full_Press" { "bindings" { "binding" "key_press RETURN, Starten" } } } }
+			"button_menu"	{ "activators" { "Full_Press" { "bindings" { "binding" "key_press F12, Pauzemenu" } } } }
+			"left_bumper"	{ "activators" { "Full_Press" { "bindings" { "binding" "key_press R, Opnieuw scannen" } } } }
+			"right_bumper"	{ "activators" { "Full_Press" { "bindings" { "binding" "key_press I, BIOS-beheer" } } } }
+		}
+	}
+
+	"group"
+	{
+		"id"		"7"
+		"mode"		"absolute_mouse"
+		"inputs"
+		{
+			"click" { "activators" { "Full_Press" { "bindings" { "binding" "mouse_button LEFT, Klik" } } } }
+		}
+	}
+
+	"preset"
+	{
+		"id"		"0"
+		"name"		"Default"
+		"group_source_bindings"
+		{
+			"0"	"button_diamond active"
+			"1"	"dpad active"
+			"2"	"joystick active"
+			"3"	"right_joystick active"
+			"4"	"right_trigger active"
+			"5"	"left_trigger active"
+			"6"	"switch active"
+			"7"	"right_trackpad active"
+		}
+	}
+
+	"settings"
+	{
+		"action_set_trigger_cursor_show"	"0"
+		"action_set_trigger_cursor_hide"	"0"
+	}
+}

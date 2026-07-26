@@ -94,11 +94,15 @@ int main(int argc, char *argv[])
         EXPECT(core.dataPath() == QStringLiteral("/path/to/share"));
     }
 
-    // T7: XML-stream-parser — <reply> emit met command-id correlatie
+    // T7: XML-stream-parser — <reply> emit, FIFO-correlatie (BUG-030).
+    // De oude variant liet de mock een `command-id`-attribuut sturen dat het
+    // echte openMSX nooit stuurt — de test valideerde daarmee een verzonnen
+    // protocol, en het echte kanaal bleef drie releases lang stil kapot.
+    // Replies dragen géén id; zonder uitstaand commando hoort id 0 te zijn.
     {
         const QString xml =
             QStringLiteral("<openmsx-output>\n"
-                           "<reply result=\"ok\" command-id=\"42\">21.0</reply>\n"
+                           "<reply result=\"ok\">21.0</reply>\n"
                            "</openmsx-output>\n");
         const QString script = makeMockScript(xml);
         EXPECT(!script.isEmpty());
@@ -117,9 +121,9 @@ int main(int argc, char *argv[])
             QTest::qWait(100);
         }
         EXPECT(replySpy.count() >= 1);
-        // Verifieer command-id parsing
+        // Zonder uitstaand commando is de FIFO leeg → id 0.
         const auto args = replySpy.last();
-        EXPECT(args.at(0).toInt() == 42);
+        EXPECT(args.at(0).toInt() == 0);
         EXPECT(args.at(1).toBool() == true);  // result="ok"
         EXPECT(args.at(2).toString() == QStringLiteral("21.0"));
     }

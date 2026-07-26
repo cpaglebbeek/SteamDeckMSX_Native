@@ -117,17 +117,18 @@ modules:
       - install -Dm644 -t ${FLATPAK_DEST}/share/openmsx/machines Contrib/cbios/*.xml
       - install -Dm644 -t ${FLATPAK_DEST}/share/openmsx/systemroms Contrib/cbios/*.rom
     sources:
-      - type: dir
-        path: externals/openmsx
-        skip:
-          # openMSX bouwt IN de bronmap: `derived/` bevat alle objectbestanden.
-          # Zonder deze uitsluiting verandert de inhoud van de bronmap bij elke
-          # build, ziet flatpak-builder een nieuwe bron en hercompileert hij de
-          # hele emulator — ~8 minuten per ronde, ook als er niets aan openMSX
-          # veranderd is. Met de uitsluiting blijft de cache geldig en is alleen
-          # de Qt-laag aan de beurt.
-          - derived
-          - .git
+      # BUG-025: een `type: dir`-source krijgt van flatpak-builder een RANDOM
+      # cache-checksum ("We can't realistically checksum a directory, so always
+      # rebuild", builder-source-dir.c) — elke build was dus per definitie een
+      # cache-miss van ~8 min, en de eerdere skip-lijst (derived/.git) stond
+      # daar volledig buiten. Een git-source checksumt op commit-hash: de cache
+      # blijft geldig zolang de fork-commit gelijk blijft. build-all.sh bewaakt
+      # dat deze pin gelijk loopt met de submodule externals/openmsx en dat die
+      # schoon is — anders bouwt de bundle stil een andere emulator dan de repo.
+      - type: git
+        url: https://github.com/cpaglebbeek/openMSX-steamdeckmsx.git
+        branch: steamdeckmsx-flatpak
+        commit: dbf9612621362f1072408fa551946b7acf687fd7
 
   # SteamDeckMSX_Native — Qt6 UI-laag
   - name: steamdeckmsx-ui

@@ -57,6 +57,13 @@ if [[ -n "$BUNDLE" ]]; then
     echo "   ok"
 fi
 
+# Altijd met schone app-data beginnen: uninstall laat ~/.var/app staan, en een
+# vorige (mislukte) run kan een slot als "bezet" hebben gepersisteerd zonder
+# state-bestand — dan test de save-fase per ongeluk een load. Gemeten op
+# 2026-07-26: run 2 drukte Enter op een bezet-gemarkeerd slot uit run 1.
+rm -rf "$HOME/.var/app/$APP_ID"
+echo "   app-data geschoond (verse QSettings + openmsx-home)"
+
 echo "== scherm + window manager =="
 pkill -f "Xvfb $DISPLAY_NR" 2>/dev/null; sleep 1
 Xvfb "$DISPLAY_NR" -screen 0 "${SCREEN_W}x${SCREEN_H}x24" -nolisten tcp >/dev/null 2>&1 &
@@ -107,7 +114,7 @@ win_state() {
 # Qt Quick een volledig zwart venster. Dat is een eigenschap van deze
 # testomgeving, niet van de app — de Deck heeft wel een GPU.
 echo "== app starten =="
-DISPLAY="$DISPLAY_NR" flatpak run --user --env=QT_QUICK_BACKEND=software \
+DISPLAY="$DISPLAY_NR" flatpak run --user --env=QT_QUICK_BACKEND=software --env=QT_FORCE_STDERR_LOGGING=1 \
     --env=DISPLAY="$DISPLAY_NR" "$APP_ID" >"$OUTDIR/app.log" 2>&1 &
 APP_PID=$!
 sleep 30                      # ruim: eerste start scant de ROM-mappen
@@ -147,6 +154,29 @@ nonblack=$(bright_pixels "$OUTDIR/02-spel.png")
 echo "   beeldvulling: $nonblack heldere pixels"
 [[ "$nonblack" -gt 20000 ]] || fail "scherm is (vrijwel) zwart ($nonblack heldere pixels) — er draait wel iets, maar er is niets te zien"
 
+# v0.5.1: save-state maken via de route die de speler heeft. Tijdens het spelen
+# is de galerij verborgen en vangt de X-sneltoets niets — de enige weg is
+# F12 → pauzemenu → Save-states (X) → slot kiezen. Vóór v0.5.1 bestond die weg
+# niet; deze stap bewaakt dat hij blijft bestaan.
+echo "== save-state maken (F12 → pauzemenu → X → Enter) =="
+timeout 10 env DISPLAY="$DISPLAY_NR" xdotool key --clearmodifiers F12
+sleep 6
+# F12 ging naar de emulator (die had focus); de X-toets moet naar het
+# galerijvenster waar het menu nu op staat — zonder expliciete activatie kan
+# de toets nog bij openMSX landen en faalt de stap onterecht.
+timeout 10 env DISPLAY="$DISPLAY_NR" xdotool search --name "SteamDeckMSX" windowactivate 2>/dev/null
+sleep 1
+timeout 10 env DISPLAY="$DISPLAY_NR" xdotool key --clearmodifiers x
+sleep 3
+shoot 04-saveoverlay.png
+timeout 10 env DISPLAY="$DISPLAY_NR" xdotool key --clearmodifiers Return
+sleep 5                       # save + overlay sluit → hervat, galerij weer weg
+if ! grep -qE '\[SaveState\] "?save"? slot [0-9]+ ok' "$OUTDIR/app.log"; then
+    grep -i "SaveState" "$OUTDIR/app.log" | tail -3
+    fail "geen bevestigde save in de app-log — openMSX heeft de state niet geschreven"
+fi
+echo "   save door openMSX bevestigd"
+
 echo "== terug naar de galerij (F12) =="
 # Naar het actieve venster: dat is de emulator, want de galerij is unmapped.
 timeout 10 env DISPLAY="$DISPLAY_NR" xdotool key --clearmodifiers F12
@@ -171,10 +201,57 @@ userdir=$(find "$HOME/.var/app/$APP_ID" -type d -name openmsx 2>/dev/null | head
 written=$(find "$userdir" -type f 2>/dev/null | wc -l | tr -d ' ')
 echo "   $userdir ($written bestanden)"
 [[ "$written" -gt 0 ]] || fail "map bestaat maar openMSX schreef er niets in"
+statefile=$(find "$userdir" -path "*savestates*" -name "slot_*" -type f 2>/dev/null | head -1)
+[[ -n "$statefile" ]] || fail "geen savestate-bestand onder $userdir — 'save ok' in de log zonder bestand"
+echo "   state-bestand: $statefile"
+
+# Terugladen ná een herstart: "kan schrijven" was tot v0.5.1 slechts een proxy.
+# Een state die niet meer terugkomt na een app-herstart is precies wat een
+# speler als eerste raakt — en dat was nooit gemeten.
+echo "== herstart: save-state terugladen =="
+kill "$APP_PID" 2>/dev/null; wait "$APP_PID" 2>/dev/null
+pkill -f "openmsx" 2>/dev/null
+sleep 4
+DISPLAY="$DISPLAY_NR" flatpak run --user --env=QT_QUICK_BACKEND=software --env=QT_FORCE_STDERR_LOGGING=1 \
+    --env=DISPLAY="$DISPLAY_NR" "$APP_ID" >"$OUTDIR/app2.log" 2>&1 &
+APP_PID=$!
+sleep 30
+read -r rw rh rs <<<"$(win_state 'SteamDeckMSX')"
+[[ "$rs" == "IsViewable" ]] || fail "galerij niet zichtbaar na herstart ($rs)"
+timeout 10 env DISPLAY="$DISPLAY_NR" xdotool search --name "SteamDeckMSX" windowactivate 2>/dev/null
+sleep 2
+timeout 10 env DISPLAY="$DISPLAY_NR" xdotool key --clearmodifiers Return
+sleep 3
+timeout 10 env DISPLAY="$DISPLAY_NR" xdotool key --clearmodifiers Return
+sleep 20                      # bewust vroeg in de boot: vóór het save-moment
+shoot 05-voor-load.png
+timeout 10 env DISPLAY="$DISPLAY_NR" xdotool key --clearmodifiers F12
+sleep 6
+timeout 10 env DISPLAY="$DISPLAY_NR" xdotool search --name "SteamDeckMSX" windowactivate 2>/dev/null
+sleep 1
+timeout 10 env DISPLAY="$DISPLAY_NR" xdotool key --clearmodifiers x
+sleep 3
+shoot 06-loadoverlay.png
+timeout 10 env DISPLAY="$DISPLAY_NR" xdotool key --clearmodifiers Return
+sleep 6                       # loadstate + overlay sluit → hervat
+shoot 07-geladen.png
+if ! grep -qE '\[SaveState\] "?load"? slot [0-9]+ ok' "$OUTDIR/app2.log"; then
+    grep -i "SaveState" "$OUTDIR/app2.log" | tail -3
+    fail "geen bevestigde load in de app-log na herstart — de state komt niet terug"
+fi
+grep -q "FAALDE" "$OUTDIR/app2.log" && fail "save/load-fout in app2.log: $(grep FAALDE "$OUTDIR/app2.log" | head -1)"
+loaded_light=$(bright_pixels "$OUTDIR/07-geladen.png")
+echo "   load door openMSX bevestigd; beeld na load: $loaded_light heldere pixels"
+[[ "$loaded_light" -gt 20000 ]] || fail "na de load is er (vrijwel) geen beeld ($loaded_light)"
 
 echo
 echo "ZICHTBAARHEIDS-GATE GROEN"
-echo "  01-galerij.png  — galerij bij start"
-echo "  02-spel.png     — spel schermvullend, galerij weg"
-echo "  03-terug.png    — galerij terug na F12"
-echo "Bekijk de drie screenshots in $OUTDIR ook met eigen ogen."
+echo "  01-galerij.png     — galerij bij start"
+echo "  02-spel.png        — spel schermvullend, galerij weg"
+echo "  03-terug.png       — galerij terug na F12"
+echo "  04-saveoverlay.png — save-overlay via pauzemenu"
+echo "  05-voor-load.png   — vroege boot ná herstart (controlebeeld)"
+echo "  06-loadoverlay.png — overlay met bezet slot ná herstart"
+echo "  07-geladen.png     — beeld ná terugladen van de state"
+echo "Vergelijk vooral 05 en 07 met eigen ogen: 07 hoort op het save-moment te"
+echo "lijken (02), niet op de vroege boot (05)."

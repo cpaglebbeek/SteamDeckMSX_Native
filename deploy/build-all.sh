@@ -33,7 +33,16 @@ cmake_ver=$(grep -oE 'VERSION [0-9]+\.[0-9]+\.[0-9]+' CMakeLists.txt | head -1 |
 cmake_code=$(grep -oE 'STEAMDECKMSX_VERSION_CODENAME "[^"]+"' CMakeLists.txt | head -1 | sed 's/.*"\(.*\)"/\1/')
 [[ "$VERSION" == "${cmake_ver}-${cmake_code}" ]] \
     || fail "VERSION ($VERSION) wijkt af van CMakeLists (${cmake_ver}-${cmake_code})"
-echo "   $VERSION"
+# BUG-025: de openmsx-module bouwt sindsdien uit de git-fork, gepind op een
+# commit in het manifest. Drift tussen die pin en de submodule zou stil een
+# andere emulator bundelen dan de repo laat zien — daarom hier blokkerend.
+sub_head=$(git -C externals/openmsx rev-parse HEAD)
+manifest_commit=$(grep -oE 'commit: [0-9a-f]{40}' nl.icthorse.SteamDeckMSX.yaml | awk '{print $2}')
+[[ "$sub_head" == "$manifest_commit" ]] \
+    || fail "manifest pint openmsx-commit ${manifest_commit:-<geen>} maar submodule staat op $sub_head"
+[[ -z "$(git -C externals/openmsx status --porcelain)" ]] \
+    || fail "externals/openmsx heeft onvastgelegde wijzigingen — commit + push de fork eerst"
+echo "   $VERSION (openmsx-pin ${manifest_commit:0:9} ok)"
 
 step "2 lokaal bouwen"
 cmake --preset native-debug >/dev/null 2>&1 || fail "cmake configure"
@@ -64,8 +73,11 @@ if [[ $QUICK -eq 1 ]]; then
 fi
 
 step "5 broncode naar $HOST"
+# 'derived' (openMSX-buildoutput, 70MB) hoeft niet mee: de flatpak-build haalt
+# de emulator sinds BUG-025 uit de git-fork, niet uit deze bestandsboom.
 rsync -az --exclude '.git' --exclude 'build' --exclude 'build-flatpak' \
       --exclude 'repo' --exclude '.flatpak-builder' --exclude '*.flatpak' \
+      --exclude 'derived' \
       --exclude 'verify-out*' ./ "$HOST:$REMOTE/" || fail "rsync"
 echo "   ok"
 

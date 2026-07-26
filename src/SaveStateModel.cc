@@ -31,8 +31,34 @@ SaveStateModel::SaveStateModel(QObject *parent)
 void SaveStateModel::setCore(MsxCore *c)
 {
     if (c == m_core) return;
+    if (m_core) disconnect(m_core, &MsxCore::replyReceived, this, &SaveStateModel::onCoreReply);
     m_core = c;
+    if (m_core) connect(m_core, &MsxCore::replyReceived, this, &SaveStateModel::onCoreReply);
     emit coreChanged();
+}
+
+void SaveStateModel::onCoreReply(int commandId, bool ok, const QString &body)
+{
+    if (!m_pending.contains(commandId)) return;
+    const auto op = m_pending.take(commandId);
+    if (ok) {
+        // qWarning en niet qInfo: info-berichten staan standaard uit in
+        // release-omgevingen en dan ziet de gate dit bewijs nooit.
+        qWarning() << "[SaveState]" << op.first << "slot" << op.second << "ok";
+        emit operationFinished(op.second, op.first, true, QString());
+        return;
+    }
+    qWarning() << "[SaveState]" << op.first << "slot" << op.second << "FAALDE:" << body;
+    if (op.first == QStringLiteral("save")) {
+        // saveTo had het slot al bezet gemarkeerd; zonder terugdraai wijst het
+        // slot naar een state-bestand dat nooit geschreven is en faalt elke
+        // latere load op een "bezet" slot.
+        SaveStateSlot &s = m_slots[op.second];
+        s.occupied = false;
+        persistSlot(op.second);
+        emitSlotDataChanged(op.second);
+    }
+    emit operationFinished(op.second, op.first, false, body);
 }
 
 void SaveStateModel::setCurrentRomStem(const QString &stem)
@@ -105,6 +131,7 @@ int SaveStateModel::saveTo(int slot)
         return -1;
     }
     const int id = m_core->savestate(s.name);
+    if (id > 0) m_pending.insert(id, {QStringLiteral("save"), slot});
     emit saveRequested(slot, id);
     return id;
 }
@@ -119,6 +146,7 @@ int SaveStateModel::loadFrom(int slot)
         return -1;
     }
     const int id = m_core->loadstate(s.name);
+    if (id > 0) m_pending.insert(id, {QStringLiteral("load"), slot});
     emit loadRequested(slot, id);
     return id;
 }

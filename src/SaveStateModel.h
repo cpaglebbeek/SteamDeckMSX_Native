@@ -4,6 +4,8 @@
 #include <QString>
 #include <QVector>
 #include <QDateTime>
+#include <QHash>
+#include <QPair>
 #include <qqmlregistration.h>
 
 #include "MsxCore.h"
@@ -77,6 +79,14 @@ signals:
     void slotChanged(int slot);
     void saveRequested(int slot, int commandId);
     void loadRequested(int slot, int commandId);
+    // v0.5.1: het echte resultaat van openMSX, niet slechts het verzoek.
+    // saveTo/loadFrom waren fire-and-forget: een mislukte load toonde een
+    // succes-toast en niemand — app noch release-gate — zag het verschil.
+    // op = "save" | "load".
+    void operationFinished(int slot, const QString &op, bool ok, const QString &message);
+
+private slots:
+    void onCoreReply(int commandId, bool ok, const QString &body);
 
 private:
     void load();
@@ -89,4 +99,6 @@ private:
     MsxCore *m_core{nullptr};
     QString m_currentRomStem{};
     QVector<SaveStateSlot> m_slots;
+    // command-id → (op, slot) van nog onbeantwoorde save/load-commando's.
+    QHash<int, QPair<QString, int>> m_pending;
 };

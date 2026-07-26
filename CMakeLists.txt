@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 
 project(SteamDeckMSX
-    VERSION 0.5.0
+    VERSION 0.5.1
     DESCRIPTION "SteamDeckMSX_Native — Qt6 Deck-UI rondom openMSX-fork"
     HOMEPAGE_URL "https://github.com/cpaglebbeek/SteamDeckMSX_Native"
     LANGUAGES CXX
@@ -16,7 +16,7 @@ set(CMAKE_AUTORCC ON)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
-set(STEAMDECKMSX_VERSION_CODENAME "Goonies" CACHE STRING "MSX-game-heroes codename")
+set(STEAMDECKMSX_VERSION_CODENAME "Hinotori" CACHE STRING "MSX-game-heroes codename")
 set(STEAMDECKMSX_UI_TOOLKIT "qt6" CACHE STRING "UI toolkit (qt6|gtk4) — qt6 only in v0.x")
 set(STEAMDECKMSX_OPENMSX_LINK "subprocess" CACHE STRING "openMSX coupling (subprocess|embedded) — subprocess only in v0.x")
 set(STEAMDECKMSX_TARGET "steamdeck" CACHE STRING "Build target (steamdeck|native)")

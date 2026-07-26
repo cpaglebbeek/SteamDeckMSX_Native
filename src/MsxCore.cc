@@ -180,8 +180,14 @@ void MsxCore::start(const QString &romPath)
     m_xmlBuffer.clear();
     m_xmlRootOpen = false;
     m_nextCommandId = 1;
+    m_replyIdQueue.clear();
     m_xml.clear();
     m_process.start(m_openmsxPath, args);
+    // BUG-030: het control-protocol vereist dat de cliënt zijn eigen root-tag
+    // opent vóór het eerste commando. Zonder deze regel is de XML-stroom naar
+    // openMSX nooit een geldig document geworden. QProcess buffert de write
+    // tot het kanaal open is, dus dit mag direct na start().
+    m_process.write("<openmsx-control>\n");
 }
 
 void MsxCore::setPaused(bool on)
@@ -345,8 +351,19 @@ int MsxCore::sendCommand(const QString &cmd)
         return -1;
     }
     const int id = m_nextCommandId++;
-    const QString wrapped =
-        QStringLiteral("<command id=\"%1\">%2</command>\n").arg(id).arg(cmd);
+    // BUG-030: GEEN id-attribuut op <command> — openMSX (19.1 én 21.0, gemeten
+    // 2026-07-26) negeert elk command-element mét zo'n attribuut stilzwijgend.
+    // Alle stdin-commando's (savestate, pause, cartb, quit …) zijn daardoor
+    // sinds het begin no-ops geweest. Replies dragen ook geen id: openMSX
+    // antwoordt strikt in volgorde, dus de koppeling loopt via een FIFO.
+    // Inhoud XML-escapen: een ROM-naam met '&' of '<' zou anders de
+    // XML-parser aan de openMSX-kant breken.
+    QString esc = cmd;
+    esc.replace(QLatin1Char('&'), QStringLiteral("&amp;"))
+       .replace(QLatin1Char('<'), QStringLiteral("&lt;"))
+       .replace(QLatin1Char('>'), QStringLiteral("&gt;"));
+    const QString wrapped = QStringLiteral("<command>%1</command>\n").arg(esc);
+    m_replyIdQueue.enqueue(id);
     m_process.write(wrapped.toUtf8());
     return id;
 }
@@ -432,7 +449,9 @@ void MsxCore::handleStartElement()
     if (name == QStringLiteral("reply")) {
         const auto attrs = m_xml.attributes();
         m_curReplyResult = attrs.value(QStringLiteral("result")).toString();
-        m_curReplyId     = attrs.value(QStringLiteral("command-id")).toInt();
+        // Géén id uit attributen: openMSX stuurt er geen (BUG-030). De
+        // bijbehorende command-id komt bij het sluiten van het element uit
+        // de FIFO — replies arriveren in verzendvolgorde.
         return;
     }
     if (name == QStringLiteral("update")) {
@@ -458,11 +477,11 @@ void MsxCore::handleEndElement()
         return;
     }
     if (name == QStringLiteral("reply")) {
-        emit replyReceived(m_curReplyId,
+        const int id = m_replyIdQueue.isEmpty() ? 0 : m_replyIdQueue.dequeue();
+        emit replyReceived(id,
                            m_curReplyResult == QStringLiteral("ok"),
                            m_curText.trimmed());
         m_curReplyResult.clear();
-        m_curReplyId = 0;
         return;
     }
     if (name == QStringLiteral("update")) {

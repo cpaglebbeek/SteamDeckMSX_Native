@@ -638,6 +638,19 @@ ApplicationWindow {
                     width: (parent.width - Tokens.space4) / 2
                 }
             }
+
+            // BUG-023: de knoptoewijzing hoort op het scherm te staan — de Deck
+            // heeft geen toetsenbord in de hand, dus dit is de enige plek waar
+            // een speler kan zien wat de controller doet (Steam Input vertaalt
+            // de knoppen naar deze toetsen via presets/controller_neptune.vdf).
+            Text {
+                width: parent.width
+                text: qsTr("🎮  A start · B terug · X saves · Y stop · Select pauze · L1 scan · R1 BIOS · rechter stick muis")
+                color: Tokens.fgDisabled
+                font.family: Tokens.fontFamily
+                font.pixelSize: Tokens.fontSizeLabel
+                elide: Text.ElideRight
+            }
         }
     }
 
@@ -651,6 +664,13 @@ ApplicationWindow {
             // situatie die BUG-022 veroorzaakte.
             if (msxCore.fullscreen && msxCore.state === MsxCore.Running)
                 root.setGalleryVisible(false)
+        }
+        onSavesRequested: {
+            // Menu dicht, overlay open; het spel blijft gepauzeerd en de
+            // galerij zichtbaar (daar staat de overlay op). Hervatten gebeurt
+            // pas als de overlay sluit — zie savesOverlay.onClosed.
+            close()
+            savesOverlay.open()
         }
         onGalleryRequested: {
             close()
@@ -681,14 +701,40 @@ ApplicationWindow {
         model: saves
         currentRomStem: saves.currentRomStem
         onSlotActivated: function(slot, wasOccupied) {
+            // Geen toast hier: het verzoek is nog geen resultaat. De echte
+            // uitkomst komt via saves.operationFinished (v0.5.1) — een
+            // mislukte load toonde eerder gewoon "Load slot N".
             if (wasOccupied) {
                 saves.loadFrom(slot)
-                toast.show(qsTr("Load slot ") + slot, "info")
             } else {
                 saves.saveTo(slot)
-                toast.show(qsTr("Save slot ") + slot, "info")
             }
             savesOverlay.close()
+        }
+        onClosed: {
+            // Geopend vanuit het pauzemenu staat het spel stil en de galerij
+            // vóór het spel; allebei terugdraaien. Buiten die route zijn beide
+            // aanroepen onschadelijke no-ops.
+            msxCore.setPaused(false)
+            if (msxCore.fullscreen && msxCore.state === MsxCore.Running)
+                root.setGalleryVisible(false)
+        }
+    }
+
+    Connections {
+        target: saves
+        function onOperationFinished(slot, op, ok, message) {
+            // Bewust dubbel gelogd (C++ qWarning in SaveStateModel + deze
+            // console.log): tijdens BUG-030 leek qWarning onderdrukt, maar er
+            // víel niets te loggen — er kwam nooit een reply. Beide kanalen
+            // werken; deze regel blijft omdat de gate op het qml-kanaal toetst
+            // en het de UI-kant van het resultaat documenteert.
+            console.log("[SaveState]", op, "slot", slot, ok ? "ok" : "FAALDE: " + message)
+            if (ok) {
+                toast.show((op === "load" ? qsTr("Load slot ") : qsTr("Save slot ")) + slot, "info")
+            } else {
+                toast.show((op === "load" ? qsTr("Load faalde: ") : qsTr("Save faalde: ")) + message, "error")
+            }
         }
     }
 
