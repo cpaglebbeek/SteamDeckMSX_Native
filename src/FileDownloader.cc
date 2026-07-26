@@ -21,6 +21,18 @@ FileDownloader::~FileDownloader()
     cleanup();
 }
 
+void FileDownloader::setCredentials(const QString &user, const QString &password)
+{
+    m_authUser = user;
+    m_authPassword = password;
+}
+
+void FileDownloader::clearCredentials()
+{
+    m_authUser.clear();
+    m_authPassword.clear();
+}
+
 bool FileDownloader::start(const QUrl &url, const QString &destPath, qint64 maxBytes)
 {
     if (m_reply) {
@@ -63,6 +75,14 @@ bool FileDownloader::start(const QUrl &url, const QString &destPath, qint64 maxB
     req.setTransferTimeout(30 * 1000);
     req.setHeader(QNetworkRequest::UserAgentHeader,
                   QStringLiteral("SteamDeckMSX/0.1.0 FileDownloader"));
+    // Basic-auth vooraf meesturen in plaats van wachten op de 401-uitdaging:
+    // dat scheelt een round-trip en voorkomt dat Qt om gegevens vraagt in een
+    // dialoog die op een handheld niet te bedienen is. Alleen over https, wat
+    // hierboven al is afgedwongen — anders zou het wachtwoord leesbaar meegaan.
+    if (!m_authUser.isEmpty()) {
+        const QByteArray token = (m_authUser + QChar(':') + m_authPassword).toUtf8().toBase64();
+        req.setRawHeader("Authorization", "Basic " + token);
+    }
 
     m_reply = m_nam->get(req);
     if (!m_reply) {

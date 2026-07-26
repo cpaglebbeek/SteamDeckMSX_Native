@@ -42,6 +42,12 @@ public slots:
     // destPath = absoluut pad waar bytes naartoe worden geschreven bij succes.
     // maxBytes = harde cap; >cap → cancel + error.
     Q_INVOKABLE bool start(const QUrl &url, const QString &destPath, qint64 maxBytes = kDefaultMaxBytes);
+    // Inloggegevens voor bronnen achter basic-auth (eigen NAS of webserver).
+    // Bewust per download mee te geven en niet als instelling met een
+    // standaardwaarde: een wachtwoord dat met de app meereist is voor iedereen
+    // die de app heeft leesbaar, en beschermt dus niets.
+    Q_INVOKABLE void setCredentials(const QString &user, const QString &password);
+    Q_INVOKABLE void clearCredentials();
     Q_INVOKABLE void cancel();
 
 signals:
@@ -58,6 +64,8 @@ private slots:
     void onProgress(qint64 received, qint64 total);
 
 private:
+    QString m_authUser;
+    QString m_authPassword;
     QNetworkAccessManager *m_nam{nullptr};
     QNetworkReply *m_reply{nullptr};
     QString m_destPath;

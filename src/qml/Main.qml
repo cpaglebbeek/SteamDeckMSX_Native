@@ -237,10 +237,13 @@ ApplicationWindow {
 
     UrlImportDialog {
         id: urlImportDialog
-        onConfirmed: function(url, name, target) {
+        onConfirmed: function(url, name, target, user, password) {
             urlImportDialog.busy = true
             urlImportDialog.progress = 0
             urlImportDialog.progressLabel = qsTr("Verbinden...")
+            // Inloggegevens gelden alleen voor deze ene import; ze worden
+            // nergens bewaard.
+            cartridges.setDownloadCredentials(user, password)
             if (target === "bios") bios.addFromUrl(url, name)
             else                    cartridges.addFromUrl(url, name)
         }

@@ -226,9 +226,13 @@ void OnlineIndex::parseIndex(const QByteArray &raw)
 
         Entry e;
         e.path = line;
-        const int slash = line.lastIndexOf(QChar('/'));
-        e.name = (slash >= 0) ? line.mid(slash + 1) : line;
-        e.folder = (slash >= 0) ? line.left(slash) : QString();
+        // De bron scheidt mappen met een backslash, niet met een schuine
+        // streep — op HTTP-niveau werkt dat (percent-encoded als %5C), maar
+        // alleen op '/' splitsen laat de hele regel als bestandsnaam staan en
+        // maakt het mapfilter leeg. Beide scheidingstekens dus.
+        const int cut = qMax(line.lastIndexOf(QChar('/')), line.lastIndexOf(QChar('\\')));
+        e.name = (cut >= 0) ? line.mid(cut + 1) : line;
+        e.folder = (cut >= 0) ? line.left(cut).replace(QChar('\\'), QChar('/')) : QString();
         if (!e.folder.isEmpty()) folders.insert(e.folder);
         m_all.append(e);
     }

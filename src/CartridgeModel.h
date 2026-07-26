@@ -62,6 +62,9 @@ public slots:
     // v0.1.0: addFromUrl downloadt asynchroon naar storageDir/<preferredName>
     // en voegt toe na succes. Resultaat via downloadFinished / downloadFailed signals.
     Q_INVOKABLE void addFromUrl(const QUrl &url, const QString &preferredName = QString());
+    // Voor bronnen achter basic-auth. Per import in te vullen; er is bewust
+    // geen opgeslagen standaard, zie FileDownloader::setCredentials.
+    Q_INVOKABLE void setDownloadCredentials(const QString &user, const QString &password);
     void clearRecents();
 
 signals:

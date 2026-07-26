@@ -91,6 +91,15 @@ bool CartridgeModel::addFromLocal(const QString &path, bool copyIntoStorage)
     return true;
 }
 
+void CartridgeModel::setDownloadCredentials(const QString &user, const QString &password)
+{
+    if (user.isEmpty()) {
+        m_downloader->clearCredentials();
+    } else {
+        m_downloader->setCredentials(user, password);
+    }
+}
+
 void CartridgeModel::addFromUrl(const QUrl &url, const QString &preferredName)
 {
     if (m_busy) {

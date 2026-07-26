@@ -22,7 +22,7 @@ Popup {
     property real progress: 0.0  // 0..1
     property string progressLabel: ""
 
-    signal confirmed(string url, string name, string target)
+    signal confirmed(string url, string name, string target, string user, string password)
     signal canceled()
 
     width: 720
@@ -106,6 +106,89 @@ Popup {
             }
         }
 
+        // Inloggegevens voor bronnen achter een wachtwoord (eigen NAS of
+        // webserver). Leeg laten als de bron openbaar is. Er is bewust geen
+        // opgeslagen standaardwaarde: een wachtwoord dat met de app meereist
+        // is leesbaar voor iedereen die de app heeft en beschermt dus niets.
+        Column {
+            spacing: Tokens.space2
+            width: parent.width - 2 * Tokens.space5
+
+            Row {
+                spacing: Tokens.space3
+                Text {
+                    text: qsTr("Inloggegevens (alleen als de bron erom vraagt)")
+                    color: Tokens.fgSecondary
+                    font.family: Tokens.fontFamily
+                    font.pixelSize: Tokens.fontSizeLabel
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                MenuButton {
+                    label: kbPanel.visible ? qsTr("toetsenbord verbergen") : qsTr("toetsenbord")
+                    onClicked: kbPanel.visible = !kbPanel.visible
+                }
+            }
+
+            Row {
+                width: parent.width
+                spacing: Tokens.space3
+
+                TextField {
+                    id: userField
+                    width: (parent.width - Tokens.space3) / 2
+                    placeholderText: qsTr("gebruiker")
+                    font.family: Tokens.fontFamilyMono
+                    font.pixelSize: Tokens.fontSizeBody
+                    color: Tokens.fgPrimary
+                    background: Rectangle {
+                        color: Tokens.bgBase
+                        border.color: userField.activeFocus ? Tokens.accentPrimary : Tokens.borderSubtle
+                        border.width: userField.activeFocus ? 2 : 1
+                        radius: 4
+                    }
+                    enabled: !dlg.busy
+                    onActiveFocusChanged: if (activeFocus) kbPanel.field = "user"
+                }
+
+                TextField {
+                    id: passField
+                    width: (parent.width - Tokens.space3) / 2
+                    placeholderText: qsTr("wachtwoord")
+                    echoMode: TextInput.Password
+                    font.family: Tokens.fontFamilyMono
+                    font.pixelSize: Tokens.fontSizeBody
+                    color: Tokens.fgPrimary
+                    background: Rectangle {
+                        color: Tokens.bgBase
+                        border.color: passField.activeFocus ? Tokens.accentPrimary : Tokens.borderSubtle
+                        border.width: passField.activeFocus ? 2 : 1
+                        radius: 4
+                    }
+                    enabled: !dlg.busy
+                    onActiveFocusChanged: if (activeFocus) kbPanel.field = "pass"
+                }
+            }
+
+            // Schermtoetsenbord: op de Deck is er geen fysiek toetsenbord, dus
+            // zonder dit zijn deze velden daar niet in te vullen.
+            Column {
+                id: kbPanel
+                visible: false
+                width: parent.width
+                property string field: "pass"
+
+                OnScreenKeyboard {
+                    id: credKb
+                    width: parent.width
+                    onTextChanged: {
+                        if (kbPanel.field === "user") userField.text = text
+                        else passField.text = text
+                    }
+                    onAccepted: kbPanel.visible = false
+                }
+            }
+        }
+
         // Progress-bar (alleen zichtbaar tijdens download)
         ProgressBar {
             width: parent.width - 2 * Tokens.space5
@@ -135,7 +218,7 @@ Popup {
             Button {
                 text: dlg.busy ? qsTr("Bezig…") : qsTr("Downloaden")
                 enabled: !dlg.busy && urlField.text.trim().length > 0
-                onClicked: dlg.confirmed(urlField.text.trim(), nameField.text.trim(), dlg.target)
+                onClicked: dlg.confirmed(urlField.text.trim(), nameField.text.trim(), dlg.target, userField.text.trim(), passField.text)
             }
         }
     }
