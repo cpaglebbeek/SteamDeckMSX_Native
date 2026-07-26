@@ -32,7 +32,11 @@ fi
 if [ -f "$BUNDLE_NAME" ]; then
   cp "$BUNDLE_NAME" "$WEBDIR/" && \
   ln -sfn "$BUNDLE_NAME" "$WEBDIR/SteamDeckMSX-latest.flatpak" && \
-  echo "PUBLISHED $BUNDLE_NAME + latest-symlink" >> flatpak-build.log
+  # De Flatpak zelf draagt geen leesbaar versienummer: `flatpak info` toont wel
+  # een commit-hash maar geen Version-veld. Daarom publiceren we het nummer
+  # ernaast, zodat de deploy op de Deck kan tonen wat er binnenkomt.
+  printf '%s\n' "$VERSION_STR" > "$WEBDIR/VERSION" && \
+  echo "PUBLISHED $BUNDLE_NAME + latest-symlink + VERSION" >> flatpak-build.log
 fi
 
 touch /root/sdmsx_build/BUILD_DONE
