@@ -19,6 +19,9 @@ GridView {
     // "niets gevonden" zonder te tonen wáár is gezocht is niet te debuggen —
     // precies het probleem dat v0.3.0 opleverde.
     property var searchedPaths: []
+    // Bron voor de frame-reeksen van de tegel-animaties; doorgegeven vanuit
+    // Main.qml omdat de generator daar leeft.
+    property var thumbGen: null
 
     // Vier op een rij bij 1280px breed: groot genoeg om de screenshot te lezen,
     // klein genoeg om te bladeren zonder eindeloos scrollen.
@@ -47,12 +50,18 @@ GridView {
             machine: model.machine
             mediaType: model.mediaType
             sha1: model.sha1
+            thumbGen: grid.thumbGen
             hasThumb: model.hasThumb
             thumbSource: model.hasThumb ? "file://" + model.thumbPath : ""
             focused: GridView.isCurrentItem
 
             MouseArea {
                 anchors.fill: parent
+                // De rechter joystick van de Deck stuurt een muiscursor. Zonder
+                // hover verspringt de selectie pas bij de klik, en zie je tijdens
+                // het bewegen niet waar je bent — dan navigeer je blind.
+                hoverEnabled: true
+                onEntered: grid.currentIndex = index
                 onClicked: {
                     grid.currentIndex = index
                     grid.activateCurrent()

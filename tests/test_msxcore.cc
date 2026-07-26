@@ -212,7 +212,11 @@ int main(int argc, char *argv[])
         EXPECT(startup.contains(QStringLiteral("set renderer")));
         EXPECT(startup.contains(QStringLiteral("set power on")));
         EXPECT(startup.contains(QStringLiteral("set fullscreen on")));
-        EXPECT(startup.contains(QStringLiteral("bind F12 quit")));
+        // v0.4.0: F12 sluit niet meer direct af maar vraagt om het pauzemenu.
+        // Direct afsluiten gaf geen keuze — ook niet als je alleen wilde pauzeren.
+        EXPECT(startup.contains(QStringLiteral("bind F12")));
+        EXPECT(startup.contains(QString::fromLatin1(MsxCore::kMenuSignal)));
+        EXPECT(!startup.contains(QStringLiteral("bind F12 quit")));
         // Renderer vóór fullscreen: fullscreen slaat nergens op zonder venster.
         EXPECT(startup.indexOf(QStringLiteral("set renderer"))
                < startup.indexOf(QStringLiteral("set fullscreen")));
