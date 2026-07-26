@@ -5,7 +5,7 @@
 # dus hangen, waardoor de stappen erna (Steam-item, controle) nooit liepen.
 # Dit script start de app niet zelf en sluit af met een controle.
 set -u
-BASE="https://horsecloud55.ddns.net/steam/flatpak"
+BASE="https://hc55.icthorse.nl/steam/flatpak"
 APP=nl.icthorse.SteamDeckMSX
 B=SteamDeckMSX-latest.flatpak
 FOUT=0

@@ -1,5 +1,5 @@
 ( # SteamDeckMSX — app + startpakket met spellen
-BASE="https://horsecloud55.ddns.net/steam/flatpak"
+BASE="https://hc55.icthorse.nl/steam/flatpak"
 B=SteamDeckMSX-latest.flatpak
 cd ~/Downloads 2>/dev/null || cd /tmp || exit 1
 

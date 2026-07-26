@@ -21,7 +21,7 @@
 #     HTML-foutpagina) in plaats van exact hoeveel bytes het moet zijn.
 
 BUNDLE=SteamDeckMSX-latest.flatpak
-URL="https://horsecloud55.ddns.net/steam/flatpak/$BUNDLE"
+URL="https://hc55.icthorse.nl/steam/flatpak/$BUNDLE"
 
 cd ~/Downloads 2>/dev/null || cd /tmp || exit 1
 

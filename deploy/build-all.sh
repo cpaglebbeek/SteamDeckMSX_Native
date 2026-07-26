@@ -95,4 +95,4 @@ ssh "$HOST" "cd $REMOTE && bash deploy/verify-visible-hc55.sh SteamDeckMSX-v${VE
 echo
 echo "KLAAR — v$VERSION staat live."
 echo "Installeren op de Deck:"
-echo "  curl -fsSL https://horsecloud55.ddns.net/steam/flatpak/deploy.sh | bash"
+echo "  curl -fsSL https://hc55.icthorse.nl/steam/flatpak/deploy.sh | bash"
