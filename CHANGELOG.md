@@ -1,5 +1,38 @@
 # CHANGELOG — SteamDeckMSX_Native
 
+## v0.3.3-TreasureOfUsas (2026-07-26) — het spel start, maar je zag niets
+
+> Melding van de gebruiker: een spel kiezen toont "Start: <titel>" en daarna
+> blijft het scherm leeg. De emulator draaide wel degelijk.
+
+- **Oorzaak:** met `-control stdio` — de manier waarop de app de emulator
+  aanstuurt — laat openMSX het opzetten van de weergave over aan de aansturende
+  partij. Het start dan zonder renderer (geen venster) én met de machine uit
+  (geen emulatie), terwijl het proces draait en netjes antwoordt. De app zette
+  geen van beide aan. Nu wel: `set renderer` en `set power on` bij de start.
+- **De hypothese uit de vorige sessie klopte niet.** Die luidde "het venster
+  hangt achter de galerij, geef `-fullscreen` mee". openMSX kent die vlag niet
+  (fullscreen is een Tcl-setting), en met vier startvarianten op HC55 gemeten:
+  `-control stdio` alleen → nul vensters, zwart scherm; mét de fullscreen-setting
+  → byte-identiek zwart; mét renderer → beeld; renderer plus power → Nemesis 2
+  speelt. Er was dus nooit een venster om achter de galerij te hangen.
+- **Fullscreen blijft erin** en werkt zodra er een renderer én een window manager
+  is — zonder WM honoreert niemand het verzoek van SDL en blijft het venster
+  640×480. Xvfb kaal was daarmee net zo'n niet-representatieve testomgeving als
+  de handmatige `--filesystem`-rechten uit BUG-017; de gate draait nu met openbox.
+- **De galerij stapt opzij** zolang er gespeeld wordt en komt terug zodra de
+  emulator stopt. Daarbij hoort `quitOnLastWindowClosed` uit: anders sluit dat
+  verbergen het laatste venster en daarmee de hele app plus het spel.
+- **Een uitgang, want de galerij vangt geen toetsen meer** als ze verborgen is:
+  dezelfde regel legt `F12` vast als "stop het spel". De footer toont dat vóór
+  het starten, want tijdens het spelen is er geen galerij om het te lezen.
+- **Nieuwe gate `deploy/verify-visible-hc55.sh`** start de app zoals een speler
+  dat doet en telt de heldere pixels op het scherm zelf. De vier bestaande gates
+  startten openMSX zónder `-control stdio` en vroegen hem om een screenshot van
+  zichzelf — precies de route waarin openMSX zijn renderer wél zelf aanzet, en
+  die ook zonder zichtbaar venster slaagt. Daarom kwam deze bug er ongehinderd
+  doorheen; `ThumbnailGenerator` gebruikt dezelfde route en werkte altijd al.
+
 ## v0.3.1-MazeOfGalious (2026-07-25) — de galerij bleef leeg op de Deck
 
 > Melding van de gebruiker: "scan levert geen spellen op". De scanner werkte,

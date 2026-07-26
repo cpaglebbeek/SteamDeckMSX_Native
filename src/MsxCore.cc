@@ -133,14 +133,20 @@ void MsxCore::start(const QString &romPath)
     if (!romPath.isEmpty()) {
         args << QStringLiteral("-carta") << romPath;
     }
+    // BUG-022: met `-control stdio` laat openMSX het opzetten van de weergave
+    // aan de aansturende partij over. Het start dan zonder renderer (geen
+    // venster) én met de machine uit (geen emulatie) — de gebruiker ziet niets
+    // terwijl het proces gewoon draait en netjes antwoordt. Beide moeten dus
+    // expliciet aan. Faalt SDLGL-PP, dan zoekt openMSX zelf een andere renderer.
+    QStringList startup{QStringLiteral("set renderer SDLGL-PP"),
+                        QStringLiteral("set power on")};
     if (m_fullscreen) {
-        // BUG-022: zonder dit blijft het emulatorvenster achter de galerij.
-        // openMSX kent géén -fullscreen-vlag; het is een Tcl-setting. De galerij
-        // is tijdens het spelen verborgen en vangt dus geen toetsen meer, dus
-        // legt dezelfde regel meteen een uitgang vast (zie BUG-023-preset).
-        args << QStringLiteral("-command")
-             << QStringLiteral("set fullscreen on ; bind F12 quit");
+        startup << QStringLiteral("set fullscreen on");
+        // De galerij is tijdens het spelen verborgen en vangt geen toetsen meer,
+        // dus legt openMSX zelf de uitgang vast (zie BUG-023-preset).
+        startup << QStringLiteral("bind F12 quit");
     }
+    args << QStringLiteral("-command") << startup.join(QStringLiteral(" ; "));
     m_lastStartArgs = args;
 
     // BUG-004 fix: set OPENMSX_SYSTEM_DATA env so the bin finds machines/skins.

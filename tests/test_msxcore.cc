@@ -196,8 +196,9 @@ int main(int argc, char *argv[])
         EXPECT(stateSpy.count() >= 2);  // minimaal Booting → ... → Idle
     }
 
-    // T11: BUG-022 — start() geeft -fullscreen mee, met een quit-binding zodat
-    // de speler terugkan nu de galerij zich tijdens het spelen verbergt.
+    // T11: BUG-022 — met `-control stdio` zet openMSX zelf geen renderer aan en
+    // laat het de machine uit staan. Zonder deze twee regels draait de emulator
+    // wel, maar ziet de speler een zwart scherm.
     {
         const QString script = makeMockScript(QStringLiteral("<openmsx-output>\n</openmsx-output>\n"));
         MsxCore core;
@@ -205,17 +206,23 @@ int main(int argc, char *argv[])
         EXPECT(core.fullscreen());  // standaard aan
         core.start(QStringLiteral("/tmp/nemesis2.rom"));
         const QStringList args = core.lastStartArgs();
-        EXPECT(args.contains(QStringLiteral("-fullscreen")));
         const int cmd = args.indexOf(QStringLiteral("-command"));
         EXPECT(cmd >= 0 && cmd + 1 < args.size());
-        EXPECT(args.at(cmd + 1) == QStringLiteral("bind F12 quit"));
+        const QString startup = args.at(cmd + 1);
+        EXPECT(startup.contains(QStringLiteral("set renderer")));
+        EXPECT(startup.contains(QStringLiteral("set power on")));
+        EXPECT(startup.contains(QStringLiteral("set fullscreen on")));
+        EXPECT(startup.contains(QStringLiteral("bind F12 quit")));
+        // Renderer vóór fullscreen: fullscreen slaat nergens op zonder venster.
+        EXPECT(startup.indexOf(QStringLiteral("set renderer"))
+               < startup.indexOf(QStringLiteral("set fullscreen")));
         for (int i = 0; i < 50 && core.state() != MsxCore::Idle; ++i) {
             QTest::qWait(100);
         }
     }
 
-    // T12: fullscreen uitzetten haalt beide vlaggen weg — de headless gates
-    // draaien zo, en dan hoort de galerij zichtbaar te blijven.
+    // T12: fullscreen uit (zo draaien de headless gates) laat renderer en power
+    // staan — die zijn nodig voor beeld, niet voor schermvullend beeld.
     {
         const QString script = makeMockScript(QStringLiteral("<openmsx-output>\n</openmsx-output>\n"));
         MsxCore core;
@@ -227,8 +234,13 @@ int main(int argc, char *argv[])
         EXPECT(fsSpy.count() == 1);  // dedupe
         core.start(QStringLiteral("/tmp/nemesis2.rom"));
         const QStringList args = core.lastStartArgs();
-        EXPECT(!args.contains(QStringLiteral("-fullscreen")));
-        EXPECT(!args.contains(QStringLiteral("-command")));
+        const int cmd = args.indexOf(QStringLiteral("-command"));
+        EXPECT(cmd >= 0 && cmd + 1 < args.size());
+        const QString startup = args.at(cmd + 1);
+        EXPECT(startup.contains(QStringLiteral("set renderer")));
+        EXPECT(startup.contains(QStringLiteral("set power on")));
+        EXPECT(!startup.contains(QStringLiteral("fullscreen")));
+        EXPECT(!startup.contains(QStringLiteral("bind")));
         EXPECT(args.contains(QStringLiteral("-carta")));
         for (int i = 0; i < 50 && core.state() != MsxCore::Idle; ++i) {
             QTest::qWait(100);
