@@ -63,6 +63,11 @@ public:
     // Teruggeven als lijst i.p.v. een aantal, omdat een reeks gaten kan hebben
     // als het spel halverwege stopte.
     Q_INVOKABLE static QStringList framesFor(const QString &sha1Hex);
+    // BUG-034-migratie: bestaande installaties hebben frame 0 (zwart
+    // bootscherm) als basis-PNG. Vervangt de basis door het grootste frame
+    // wanneer de basis byte-gelijk is aan frame 0 — nieuw gegenereerde
+    // reeksen (basis = grootste frame) zijn dan vanzelf een no-op.
+    static void repairBase(const QString &sha1Hex);
 
 signals:
     void openmsxPathChanged();
