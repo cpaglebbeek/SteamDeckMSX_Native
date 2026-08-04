@@ -82,6 +82,17 @@ ApplicationWindow {
         }
     }
 
+    // BUG-032: eigen gamepad-lezing — geen afhankelijkheid meer van een
+    // Steam Input-layout die Steam wel of niet toepast. Knoppen worden als
+    // toetsen geïnjecteerd; alle bestaande Shortcut/Keys-paden doen de rest.
+    GamepadInput {
+        id: gamepad
+        onConnectedChanged: {
+            if (connected)
+                toast.show(qsTr("Controller: ") + controllerName, "info")
+        }
+    }
+
     SaveStateModel {
         id: saves
         core: msxCore
@@ -403,6 +414,7 @@ ApplicationWindow {
                 height: 56
 
                 Text {
+                    id: appTitle
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     text: qsTr("SteamDeckMSX")
@@ -411,9 +423,16 @@ ApplicationWindow {
                     font.pixelSize: Tokens.fontSizeDisplay
                     font.weight: Font.Bold
                     font.letterSpacing: Tokens.fontSizeDisplay * 0.02
+                    // BUG-035: de rechts-verankerde knoppenrij groeit (scan-
+                    // voortgang, statusteksten) en schoof op 1280px ónder de
+                    // titel — zichtbaar op de Deck én op de gate-screenshots.
+                    // De titel is decoratie; de knoppen zijn bediening. Bij
+                    // ruimtegebrek wijkt dus de titel, nooit de bediening.
+                    visible: headerRow.x >= width + Tokens.space4
                 }
 
                 Row {
+                    id: headerRow
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: Tokens.space4
@@ -461,13 +480,10 @@ ApplicationWindow {
                         KeyNavigation.left: openButton
                     }
 
-                    Text {
-                        text: qsTr("M · map    R · scan    I · BIOS    U · URL")
-                        color: Tokens.fgSecondary
-                        font.family: Tokens.fontFamilyMono
-                        font.pixelSize: Tokens.fontSizeLabel
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
+                    // BUG-035: de sneltoets-strip "M · map R · scan …" is hier
+                    // weg — sinds v0.5.0 zijn het echte knoppen en de footer
+                    // toont de controller-toewijzing; de strip was ~350px
+                    // dode breedte die de overlap veroorzaakte.
 
                     // Voortgang van scan/tegels — anders lijkt het alsof er
                     // niets gebeurt terwijl de emulator screenshots maakt.
@@ -645,7 +661,7 @@ ApplicationWindow {
             // de knoppen naar deze toetsen via presets/controller_neptune.vdf).
             Text {
                 width: parent.width
-                text: qsTr("🎮  A start · B terug · X saves · Y stop · Select pauze · L1 scan · R1 BIOS · rechter stick muis")
+                text: qsTr("🎮  A start · B terug · X saves · Y stop · Select pauze · L1 scan · R1 BIOS · D-pad/stick navigeren")
                 color: Tokens.fgDisabled
                 font.family: Tokens.fontFamily
                 font.pixelSize: Tokens.fontSizeLabel
