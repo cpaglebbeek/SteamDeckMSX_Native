@@ -84,6 +84,10 @@ private slots:
 private:
     void loadFromSettings();
     void persistToSettings();
+    // BUG-033: geïmporteerde BIOS spiegelen naar OPENMSX_HOME/share/systemroms
+    // (de enige plek waar openMSX machine-roms zoekt) + opruiming van die spiegel.
+    void mirrorToSystemroms(const QString &absPath);
+    void removeMirror(const QString &absPath);
     QString resolveDestPath(const QString &preferredName, const QString &fallbackBasename) const;
     BiosEntry buildEntryFromFile(const QString &absPath, const QString &source, const QString &sha1Hex);
     void appendEntry(const BiosEntry &e);
