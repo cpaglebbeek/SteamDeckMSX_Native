@@ -44,6 +44,26 @@ QStringList ThumbnailGenerator::framesFor(const QString &sha1Hex)
     return out;
 }
 
+void ThumbnailGenerator::repairBase(const QString &sha1Hex)
+{
+    const QString base = thumbnailPathFor(sha1Hex);
+    const QStringList fr = framesFor(sha1Hex);
+    if (fr.size() < 2 || !QFileInfo::exists(base)) return;
+    qint64 bestSize = -1;
+    QString best;
+    for (const QString &f : fr) {
+        const QFileInfo fi(f);
+        if (fi.size() > bestSize) { bestSize = fi.size(); best = fi.absoluteFilePath(); }
+    }
+    const QFileInfo b(base);
+    const QFileInfo f0(fr.first());
+    // Alleen ingrijpen op het oude patroon (basis == frame 0) en alleen als
+    // er echt een beter frame bestaat — anders bestanden met rust laten.
+    if (best.isEmpty() || b.size() != f0.size() || b.size() == bestSize) return;
+    QFile::remove(base);
+    QFile::copy(best, base);
+}
+
 QString ThumbnailGenerator::framePath(const QString &basePath, int index)
 {
     // …/<sha1>.png → …/<sha1>_00.png. Frame 0 houdt bewust óók een eigen naam:
@@ -98,6 +118,7 @@ void ThumbnailGenerator::enqueue(const QString &sha1Hex, const QString &romPath,
     const QString existing = thumbnailPathFor(sha1Hex);
     if (QFileInfo::exists(existing)
         && (m_frameCount <= 1 || framesFor(sha1Hex).size() >= 2)) {
+        repairBase(sha1Hex);
         emit thumbnailReady(sha1Hex, existing);
         return;
     }
@@ -238,19 +259,32 @@ void ThumbnailGenerator::onFinished(int exitCode, QProcess::ExitStatus status)
     // exitcode 0 eindigen zonder screenshot (ROM die niet boot) én met een
     // niet-nul code nádat de PNG al geschreven is.
     //
-    // v0.4.0: de frames heten <sha1>_00.png … Het eerste bruikbare frame wordt
-    // óók onder de oude naam <sha1>.png weggeschreven, zodat alles wat een
-    // enkele tegel verwacht blijft werken en een halve reeks (spel dat halverwege
-    // crasht) nog steeds een bruikbaar plaatje oplevert.
+    // v0.4.0: de frames heten <sha1>_00.png … Eén frame wordt óók onder de
+    // oude naam <sha1>.png weggeschreven, zodat alles wat een enkele tegel
+    // verwacht blijft werken.
+    //
+    // BUG-034: dat was eerst het EERSTE bruikbare frame — maar frame 0 is het
+    // bootmoment en dus vrijwel altijd een zwart scherm (op HC55 gemeten:
+    // basis-PNG 0 heldere pixels, frame 05 een vol beeld). Een niet-gefocuste
+    // tegel toont alleen de basis, dus de hele galerij oogde dood. Nu wordt
+    // het GROOTSTE frame de basis: een zwart PNG comprimeert naar bijna niets,
+    // een titelscherm niet — bestandsgrootte is hier een betrouwbare
+    // helderheids-proxy zonder het beeld te hoeven decoderen.
     int frames = 0;
+    qint64 bestSize = -1;
+    QString bestFrame;
     for (int i = 0; i < qMax(1, m_frameCount); ++i) {
         const QFileInfo f(framePath(m_currentOut, i));
         if (!f.exists() || f.size() == 0) continue;
-        if (frames == 0) {
-            QFile::remove(m_currentOut);
-            QFile::copy(f.absoluteFilePath(), m_currentOut);
-        }
         ++frames;
+        if (f.size() > bestSize) {
+            bestSize = f.size();
+            bestFrame = f.absoluteFilePath();
+        }
+    }
+    if (!bestFrame.isEmpty()) {
+        QFile::remove(m_currentOut);
+        QFile::copy(bestFrame, m_currentOut);
     }
 
     const QFileInfo fi(m_currentOut);
