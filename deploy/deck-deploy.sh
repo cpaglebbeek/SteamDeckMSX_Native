@@ -70,33 +70,27 @@ else
   echo "   handmatig: Steam > Spellen > Voeg een niet-Steam-spel toe > $D"
 fi
 
-echo "== 6/7 controller-layout (BUG-023) =="
-# De app leest zelf geen gamepad; Steam Input vertaalt Deck-knoppen naar de
-# toetsen waar de app op luistert. Steam zoekt de actieve layout voor een
-# non-Steam shortcut op naam: .../Steam Controller Configs/<account>/config/
-# <shortcutnaam lowercase>/controller_neptune.vdf. Die zetten we hier klaar
-# voor elk Steam-account op deze Deck; bestaande layout wordt ge-backupt.
-VDF=/tmp/steamdeckmsx_controller.vdf
-if curl -fsSL -o "$VDF" "$BASE/controller_neptune.vdf" && [ -s "$VDF" ]; then
-  GEZET=0
-  for UD in ~/.local/share/Steam/userdata/*/; do
-    ACC=$(basename "$UD")
-    case "$ACC" in (*[!0-9]*) continue;; esac
-    CFG=~/.local/share/Steam/steamapps/common/"Steam Controller Configs"/$ACC/config/steamdeckmsx
-    mkdir -p "$CFG"
-    [ -f "$CFG/controller_neptune.vdf" ] && cp -f "$CFG/controller_neptune.vdf" "$CFG/controller_neptune.vdf.bak"
-    cp -f "$VDF" "$CFG/controller_neptune.vdf" && GEZET=$((GEZET+1))
-  done
-  rm -f "$VDF"
-  if [ "$GEZET" -gt 0 ]; then
-    echo "   layout gezet voor $GEZET Steam-account(s)"
-    echo "   (Steam herstart nodig als het al draaide; anders leest hij hem niet)"
-  else
-    echo "   !! geen Steam-userdata gevonden — layout niet gezet (handmatig kiezen kan altijd)"
+echo "== 6/7 controller (BUG-032) =="
+# Sinds v0.6.0 leest de app de gamepad ZELF (SDL2) — de eerdere Steam Input-
+# keyboard-layout is overbodig én schadelijk (hij zou toetsen sturen naast de
+# native invoer). Eerder door ons geplaatste layouts worden hier teruggedraaid;
+# Steam's standaard gamepad-template is precies wat de app nodig heeft.
+OPGERUIMD=0
+for UD in ~/.local/share/Steam/userdata/*/; do
+  ACC=$(basename "$UD")
+  case "$ACC" in (*[!0-9]*) continue;; esac
+  CFG=~/.local/share/Steam/steamapps/common/"Steam Controller Configs"/$ACC/config/steamdeckmsx
+  if [ -f "$CFG/controller_neptune.vdf" ]; then
+    if [ -f "$CFG/controller_neptune.vdf.bak" ]; then
+      mv -f "$CFG/controller_neptune.vdf.bak" "$CFG/controller_neptune.vdf"
+    else
+      rm -f "$CFG/controller_neptune.vdf"
+    fi
+    OPGERUIMD=$((OPGERUIMD+1))
   fi
-else
-  echo "   !! layout niet opgehaald — knoppen werken pas na handmatige indeling"
-fi
+done
+[ "$OPGERUIMD" -gt 0 ] && echo "   oude keyboard-layout teruggedraaid ($OPGERUIMD account(s))" || echo "   geen oude layout aanwezig — niets te doen"
+echo "   controller werkt nu via de app zelf (geen Steam-layout nodig)"
 
 echo "== 7/7 controle =="
 # `flatpak info` toont geen Version-veld voor deze app, alleen een commit-hash.
@@ -122,11 +116,11 @@ if [ "$FOUT" -eq 0 ]; then
   echo "  flatpak run $APP"
   echo "In de galerij: A/Enter = starten · R = opnieuw scannen · M = map aanwijzen · F12 = terug uit spel"
   echo
-  echo "CONTROLLER (BUG-023): de layout 'SteamDeckMSX' is zojuist automatisch"
-  echo "gezet (D-pad/stick = navigeren, A = starten, B = terug, X = saves,"
-  echo "Y = stop, Select = pauzemenu, L1 = scan, R1 = BIOS, rechter stick = muis)."
-  echo "Werkt hij niet: Steam-knop > Controller-instellingen bij dit spel >"
-  echo "indeling 'SteamDeckMSX' kiezen (of sjabloon 'Toetsenbord en muis')."
+  echo "CONTROLLER (v0.6.0): de app leest de gamepad nu zelf — geen Steam-layout"
+  echo "meer nodig. D-pad/stick = navigeren, A = starten, B = terug, X = saves,"
+  echo "Y = stop, Select = pauzemenu, L1 = scan, R1 = BIOS."
+  echo "Controleer wel dat de controller-indeling van dit spel op het standaard"
+  echo "sjabloon 'Gamepad' staat (Steam-knop > Controller-instellingen)."
 else
   echo "DEPLOY NIET COMPLEET — zie de !!-regels hierboven"
   exit 1
