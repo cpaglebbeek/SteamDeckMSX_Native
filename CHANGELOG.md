@@ -1,5 +1,35 @@
 # CHANGELOG — SteamDeckMSX_Native
 
+## v0.6.0-SpaceManbow (2026-07-26) — native gamepad + vier Deck-meldingen (oranje)
+
+> Directe hardware-feedbackronde op v0.5.1: "muis-aansturing die ik niet wil",
+> BIOS niet te kiezen, tegels niet geanimeerd, header-overlap.
+
+- **BUG-032 — native gamepad-invoer (nieuwe component `GamepadInput`):** de
+  Steam Input-keyboard-layout bleek op de Deck niet toegepast te worden — de
+  speler hield alleen trackpad-muis over. De app leest de controller nu zelf
+  (SDL2, `--device=all` stond al aan) en injecteert de afgesproken toetsen via
+  het QPA-pad (postEvent slaat QML Shortcuts over — BUG-027-familie). D-pad +
+  linker stick navigeren met eigen auto-repeat; in-game blijft de klasse
+  passief (geen focus → openMSX leest de controller zelf). De deploy draait
+  eerder geplaatste keyboard-layouts terug; Steam's standaard Gamepad-sjabloon
+  is voortaan precies goed.
+- **BUG-033 — geïmporteerde BIOS is nu echt te kiezen:** imports worden
+  gespiegeld naar `OPENMSX_HOME/share/systemroms` (de enige plek waar openMSX
+  machine-roms zoekt, matching op SHA-1) — daarmee worden echte machines in de
+  machine-kiezer bootbaar. Bestaande imports worden bij het opstarten
+  idempotent bijgespiegeld; verwijderen ruimt de spiegel mee op.
+- **BUG-034 — galerij oogde dood (zwarte tegels):** de basis-thumbnail was
+  frame 0 = het bootmoment = zwart (op HC55 gemeten: 0 heldere pixels, frame 5
+  vol beeld). Het grootste frame is nu de basis (bestandsgrootte als
+  helderheids-proxy); bestaande zwarte bases worden hersteld zodra hun
+  frame-reeks er is. Frames animeren zoals ontworpen op de gefocuste tegel —
+  wat met werkende navigatie (BUG-032) ook daadwerkelijk te zien is.
+- **BUG-035 — header-overlap:** de rechts-verankerde knoppenrij schoof op
+  1280px onder de titel (zichtbaar op Deck én gate-screenshots). De redundante
+  sneltoets-strip is weg en bij ruimtegebrek wijkt voortaan de titel, nooit de
+  bediening.
+
 ## v0.5.1-Hinotori (2026-07-26) — controller-layout, save-states op de Deck, snelle builds (ROOD)
 
 > Vier structurele gaten: de Deck-knoppen deden niets logisch (BUG-023), save-

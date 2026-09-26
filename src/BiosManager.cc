@@ -1,6 +1,7 @@
 #include "BiosManager.h"
 #include "FileDownloader.h"
 #include "RomTypeDetector.h"
+#include "MsxCore.h"
 
 #include <QSettings>
 #include <QStandardPaths>
@@ -18,6 +19,31 @@ BiosManager::BiosManager(QObject *parent)
     connect(m_downloader, &FileDownloader::failed,   this, &BiosManager::onDownloadFailed);
     connect(m_downloader, &FileDownloader::progress, this, &BiosManager::onDownloadProgress);
     loadFromSettings();
+    // BUG-033-migratie: eerder geïmporteerde BIOS-bestanden stonden alleen in
+    // de app-opslag en waren voor openMSX onzichtbaar. Idempotent bijspiegelen.
+    for (const auto &e : std::as_const(m_entries)) {
+        if (QFileInfo::exists(e.absPath)) mirrorToSystemroms(e.absPath);
+    }
+}
+
+void BiosManager::mirrorToSystemroms(const QString &absPath)
+{
+    // BUG-033: openMSX zoekt machine-roms op SHA-1 in OPENMSX_HOME/share/
+    // systemroms; de app-opslag onder bios/ ziet hij nooit. Zonder deze
+    // spiegel was een geïmporteerde BIOS nergens "te kiezen" — echte machines
+    // in de machine-kiezer bleven onbootbaar. De bestandsnaam is voor openMSX
+    // irrelevant (matching op inhoud), maar blijft leesbaar voor de gebruiker.
+    const QString dir = MsxCore::userDataDir() + QStringLiteral("/share/systemroms");
+    QDir().mkpath(dir);
+    const QString dest = dir + QChar('/') + QFileInfo(absPath).fileName();
+    if (QFileInfo::exists(dest)) return;   // idempotent
+    QFile::copy(absPath, dest);
+}
+
+void BiosManager::removeMirror(const QString &absPath)
+{
+    QFile::remove(MsxCore::userDataDir() + QStringLiteral("/share/systemroms/")
+                  + QFileInfo(absPath).fileName());
 }
 
 QString BiosManager::storageDir() const
@@ -124,6 +150,7 @@ bool BiosManager::addFromLocal(const QString &localPath, const QString &preferre
     auto e = buildEntryFromFile(dest, source, sha);
     appendEntry(e);
     persistToSettings();
+    mirrorToSystemroms(dest);
     setBusy(false);
     emit entryAdded(e.id, e.fileName);
     return true;
@@ -133,6 +160,7 @@ bool BiosManager::removeEntry(const QString &id)
 {
     for (int i = 0; i < m_entries.size(); ++i) {
         if (m_entries[i].id == id) {
+            removeMirror(m_entries[i].absPath);
             QFile::remove(m_entries[i].absPath);
             beginRemoveRows({}, i, i);
             m_entries.removeAt(i);
@@ -147,6 +175,7 @@ bool BiosManager::removeEntry(const QString &id)
 void BiosManager::clearAll()
 {
     for (const auto &e : m_entries) {
+        removeMirror(e.absPath);
         QFile::remove(e.absPath);
     }
     beginResetModel();
@@ -160,6 +189,7 @@ void BiosManager::onDownloadFinished(const QString &destPath, const QString &sha
     auto e = buildEntryFromFile(destPath, m_pendingSource, sha1Hex);
     appendEntry(e);
     persistToSettings();
+    mirrorToSystemroms(destPath);
     setBusy(false);
     emit entryAdded(e.id, e.fileName);
 }
