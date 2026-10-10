@@ -239,7 +239,7 @@ regressietests vastgelegd (`test_romlibrary`, nu 14 cases):
 
 > Na 5 gefaalde builds op de Deck + debugronde 24-7: `SteamDeckMSX-v0.2.1-KingsValley.flatpak`
 > (22 MB, x86_64) gebouwd op HC55 met flatpak-builder, KDE runtime 6.7.
-> Gehost op https://horsecloud55.ddns.net/steam/flatpak/ voor Deck-install.
+> Gehost op https://icthorsecloud.nl/steam/flatpak/ voor Deck-install.
 
 - **BUG-011 (geel) OPGELOST:** openMSX-probe in KDE-SDK-sandbox — Tcl 8.6.16-module +
   GLEW 2.2.0-module + TCL_CONFIG/LIBRARY_PATH + GLEW-linkpad-fork-patch (RCA retroactief

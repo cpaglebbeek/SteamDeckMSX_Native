@@ -4,7 +4,7 @@
 #
 # Gehost als https://icthorse.nl/steam/dev/deploy (bewust icthorse.nl: dat
 # domein is Hostinger-DNS en heeft geen last van het No-IP-verval van
-# horsecloud55.ddns.net). Draaien in Konsole (Desktop Mode):
+# icthorsecloud.nl). Draaien in Konsole (Desktop Mode):
 #
 #   curl -fsSL https://icthorse.nl/steam/dev/deploy | bash
 #

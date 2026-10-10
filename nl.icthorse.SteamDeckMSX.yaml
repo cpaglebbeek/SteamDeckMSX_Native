@@ -6,7 +6,7 @@
 #   KDE 6.7 = Qt 6.7 → qzipreader_p.h zit daar nog in QtGui (BUG-009 fallback).
 # - --share=network TOEGEVOEGD: herziening v0.0.2-besluit "offline". Sinds
 #   v0.1.0 zijn URL-import (ROMs) + BIOS-downloads kernfeatures; hiermee laadt
-#   de Deck-app Nemesis 1+2 direct van https://horsecloud55.ddns.net/steam/konami/
+#   de Deck-app Nemesis 1+2 direct van https://icthorsecloud.nl/steam/konami/
 # - Overig ongewijzigd: subprocess-koppeling, portal i.p.v. --filesystem=home,
 #   Steam Input passthrough via --device=input (P-SDM-06)
 
