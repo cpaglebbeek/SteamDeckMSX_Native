@@ -33,6 +33,9 @@ add_library(steamdeckmsx_core STATIC
     OnlineIndex.h
     ThumbnailGenerator.cc
     OnlineIndex.cc
+    # v0.6.0-SpaceManbow (BUG-032)
+    GamepadInput.h
+    GamepadInput.cc
 )
 set_target_properties(steamdeckmsx_core PROPERTIES AUTOMOC ON)
 target_include_directories(steamdeckmsx_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -59,6 +62,24 @@ if(NOT TARGET Qt6::CorePrivate AND NOT TARGET Qt6::GuiPrivate)
         ${Qt6Gui_PRIVATE_INCLUDE_DIRS}
     )
     target_link_libraries(steamdeckmsx_core PUBLIC Qt6::Gui)
+endif()
+
+# BUG-032: native gamepad-invoer via SDL2 (KDE-runtime én Mac/brew leveren het).
+# Bewust optioneel: een platform zonder SDL2 bouwt de no-op-variant en de
+# smoke-build blokkeert nooit — maar op de Deck is dit de bediening, dus de
+# flatpak-gate faalt als de bundle 'm mist (verify-flatpak-hc55.sh).
+find_package(SDL2 QUIET)
+if(SDL2_FOUND)
+    target_compile_definitions(steamdeckmsx_core PUBLIC STEAMDECKMSX_HAVE_SDL2)
+    if(TARGET SDL2::SDL2)
+        target_link_libraries(steamdeckmsx_core PUBLIC SDL2::SDL2)
+    else()
+        target_include_directories(steamdeckmsx_core PUBLIC ${SDL2_INCLUDE_DIRS})
+        target_link_libraries(steamdeckmsx_core PUBLIC ${SDL2_LIBRARIES})
+    endif()
+    message(STATUS "SteamDeckMSX: gamepad-invoer AAN (SDL2 ${SDL2_VERSION})")
+else()
+    message(STATUS "SteamDeckMSX: SDL2 niet gevonden — gamepad-invoer als no-op")
 endif()
 
 # BUG-016: QML_ELEMENT-types in een gelinkte static lib registreren NIET
